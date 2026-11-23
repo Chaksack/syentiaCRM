@@ -1,0 +1,39 @@
+{
+  "name": "syentia-crm",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.10.0",
+  "description": "syentiaCRM — multi-account CRM and invoicing, built with Nuxt 4",
+  "engines": {
+    "node": ">=22.5"
+  },
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "typecheck": "nuxt typecheck",
+    "lint": "eslint .",
+    "format": "eslint --fix .",
+    "db:reset": "rm -f .data/syentia.sqlite .data/syentia.sqlite-* && rm -rf .data/uploads"
+  },
+  "dependencies": {
+    "nuxt": "^4.6.4",
+    "pg": "^8.23.1",
+    "vue": "^3.5.46",
+    "vue-router": "^5.5.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "latest",
+    "@nuxt/eslint": "latest",
+    "@nuxt/fonts": "^1.2.0",
+    "@tailwindcss/vite": "^4.3.5",
+    "@types/pg": "^8.23.1",
+    "eslint": "^9",
+    "tailwindcss": "^4.3.5",
+    "typescript": "~5.9.3",
+    "vue-tsc": "^3.3.14"
+  }
+}

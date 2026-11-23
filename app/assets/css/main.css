@@ -1,0 +1,202 @@
+@import "tailwindcss";
+
+/* Design tokens from the syentiaCRM canvas. */
+@theme {
+  --font-sans: Inter, system-ui, sans-serif;
+
+  --color-paper: #f7f7f4;
+  --color-surface: #f2f1ed;
+  --color-surface-2: #ebeae5;
+  --color-surface-3: #e6e5e0;
+  --color-ink: #26251e;
+  --color-ink-2: #4a4943;
+  --color-muted: #6b6a65;
+  --color-faint: #7a7974;
+  --color-border: #cdcdc9;
+  --color-line: rgb(38 37 30 / 0.1);
+  --color-rule: #e2e2df;
+  --color-accent: #c23e00;
+  --color-accent-strong: #8f2e00;
+  --color-danger-bg: #fbe1d3;
+  --color-danger: #9c3600;
+  --color-success-bg: #e1e9dc;
+  --color-success: #2c5527;
+  --color-desk: #d9d5cf;
+}
+
+@layer base {
+  html {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-size: 14px;
+    line-height: 1.5;
+    letter-spacing: 0.005em;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    margin: 0;
+    font-family: var(--font-sans);
+  }
+  a {
+    color: var(--color-accent);
+    text-decoration: none;
+  }
+  a:hover {
+    color: var(--color-accent-strong);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 2px;
+  }
+  table {
+    border-collapse: collapse;
+  }
+  th {
+    font-weight: 400;
+    text-align: left;
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer components {
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 44px;
+    padding: 0 16px;
+    border-radius: 999px;
+    border: 1px solid var(--color-border);
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+    text-decoration: none;
+  }
+  .btn:hover {
+    background: var(--color-surface-2);
+    color: var(--color-ink);
+  }
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .btn-primary {
+    border-color: transparent;
+    background: var(--color-ink);
+    color: var(--color-paper);
+    padding: 0 18px;
+  }
+  .btn-primary:hover {
+    background: #000;
+    color: var(--color-paper);
+  }
+  .btn-ghost {
+    background: transparent;
+  }
+  .btn-sm {
+    min-height: 36px;
+    padding: 0 14px;
+    font-size: 13px;
+  }
+  .btn-danger {
+    color: var(--color-danger);
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 36px;
+    padding: 0 14px;
+    border-radius: 999px;
+    border: 0;
+    background: var(--color-surface-3);
+    color: var(--color-ink);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .chip[aria-pressed="true"] {
+    background: var(--color-ink);
+    color: var(--color-paper);
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--color-muted);
+  }
+  .input {
+    min-height: 44px;
+    box-sizing: border-box;
+    width: 100%;
+    padding: 0 10px;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    background: var(--color-paper);
+    font: inherit;
+    font-size: 14px;
+    color: var(--color-ink);
+  }
+  .input-sm {
+    min-height: 36px;
+  }
+  textarea.input {
+    padding: 10px;
+    resize: vertical;
+    min-height: 0;
+  }
+
+  .page-title {
+    margin: 0;
+    font-size: 36px;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+  .section-title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+  }
+  .eyebrow {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-muted);
+  }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .data-table th {
+    color: var(--color-muted);
+    font-size: 12px;
+    padding: 8px;
+    border-bottom: 1px solid var(--color-line);
+  }
+  .data-table td {
+    padding: 12px 8px;
+    border-bottom: 1px solid var(--color-line);
+  }
+  .data-table th:first-child,
+  .data-table td:first-child {
+    padding-left: 0;
+  }
+  .data-table th:last-child,
+  .data-table td:last-child {
+    padding-right: 0;
+  }
+}
