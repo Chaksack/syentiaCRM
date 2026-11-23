@@ -417,11 +417,6 @@ watch(() => invoice.value?.id, () => {
                 No customers in {{ account.name }} yet. <NuxtLink v-if="can('customers.write')" to="/customers?new=1">Add one →</NuxtLink>
               </span>
             </label>
-            <label class="field">Currency
-              <select v-model="draft.currency" class="input">
-                <option v-for="c in CURRENCIES" :key="c.code" :value="c.code">{{ c.code }} — {{ c.name }}</option>
-              </select>
-            </label>
             <label class="field">Issue date
               <input v-model="draft.issueDate" type="date" class="input">
             </label>
@@ -440,6 +435,23 @@ watch(() => invoice.value?.id, () => {
               </div>
             </div>
           </div>
+
+          <fieldset class="m-0 flex flex-col gap-2.5 border-0 p-0">
+            <legend class="mb-2.5 p-0 text-[13px] text-muted">
+              Currency <span class="text-faint">· default for {{ account.name }}: {{ account.currency }}</span>
+            </legend>
+            <div class="flex flex-wrap gap-1.5">
+              <button
+                v-for="c in CURRENCIES" :key="c.code" type="button" class="chip !min-h-10 !px-4"
+                :aria-pressed="draft.currency === c.code" :title="c.name" @click="draft.currency = c.code"
+              >
+                {{ c.code }} <span class="ml-1.5 opacity-70">{{ c.name }}</span>
+              </button>
+            </div>
+            <p v-if="draft.currency !== account.currency" class="m-0 text-xs text-muted">
+              This invoice will be billed in {{ draft.currency }}. Check that the payment details on it can receive {{ draft.currency }}.
+            </p>
+          </fieldset>
 
           <div class="flex flex-col gap-2.5">
             <h2 class="m-0 text-[13px] font-normal text-muted">

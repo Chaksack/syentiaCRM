@@ -32,8 +32,8 @@ export type InvoiceStatus = typeof INVOICE_STATUSES[number]
 export const CURRENCIES = [
   { code: 'GHS', name: 'Ghana cedi' },
   { code: 'USD', name: 'US dollar' },
-  { code: 'EUR', name: 'Euro' },
   { code: 'GBP', name: 'British pound' },
+  { code: 'EUR', name: 'Euro' },
 ] as const
 export type Currency = typeof CURRENCIES[number]['code']
 
