@@ -64,10 +64,11 @@ export default defineNuxtConfig({
     // Also read straight from DATABASE_URL (the name Neon and Vercel use).
     databaseUrl: '',
     sessionPassword: '',
-    seedAdminEmail: 'admin@syentia.local',
-    seedAdminName: 'Andrew C.',
+    // First-run setup (server/utils/seed.ts) — only used while the database has no users.
+    seedAdminEmail: '',
+    seedAdminName: '',
     seedAdminPassword: '',
-    seedDemo: 'true',
+    seedAccountName: 'My company',
     public: {
       siteUrl: 'http://localhost:3000',
     },

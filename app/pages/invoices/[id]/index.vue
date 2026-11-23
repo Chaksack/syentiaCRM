@@ -413,6 +413,9 @@ watch(() => invoice.value?.id, () => {
                 <option :value="null" disabled>Choose a customer…</option>
                 <option v-for="c in customersData.customers" :key="c.id" :value="c.id">{{ c.name }}</option>
               </select>
+              <span v-if="!customersData.customers.length" class="text-xs">
+                No customers in {{ account.name }} yet. <NuxtLink v-if="can('customers.write')" to="/customers?new=1">Add one →</NuxtLink>
+              </span>
             </label>
             <label class="field">Currency
               <select v-model="draft.currency" class="input">

@@ -35,6 +35,9 @@ const terms = computed(() => (props.issueDate && props.dueDate
   ? termsLabel(Math.max(0, daysBetween(props.issueDate, props.dueDate)))
   : ''))
 const contactLine = computed(() => [props.account.taxId && `TIN ${props.account.taxId}`, props.account.email, props.account.phone].filter(Boolean).join(' · '))
+/** Sender block lines, skipping whatever the account hasn't filled in yet. */
+const fromLines = computed(() => [props.account.legalName, props.account.address, contactLine.value].filter(Boolean))
+const boldFromLines = computed(() => [props.account.legalName, props.account.taxId && `TIN ${props.account.taxId}`].filter(Boolean))
 const money = (minor: number) => formatMoney(minor)
 function qty(q: number) {
   return Number.isInteger(q)
@@ -57,7 +60,7 @@ const labelColour = computed(() => (isBold.value ? brand.value : '#6b6a65'))
           <AccountLogo :account="account" on-colour :size="size === 'page' ? 44 : 34" />
           <span class="text-[1.375em] tracking-[-0.02em]">{{ account.name }}</span>
         </div>
-        <span class="text-right text-[0.875em] leading-[1.6] opacity-85">{{ account.legalName }}<template v-if="account.taxId"><br>TIN {{ account.taxId }}</template></span>
+        <span class="flex flex-col text-right text-[0.875em] leading-[1.6] opacity-85"><span v-for="line in boldFromLines" :key="line">{{ line }}</span></span>
       </div>
       <div class="flex items-end justify-between gap-[1.5em]">
         <div class="flex flex-col gap-[0.375em]">
@@ -82,11 +85,7 @@ const labelColour = computed(() => (isBold.value ? brand.value : '#6b6a65'))
             <span class="text-[1.375em] tracking-[-0.02em]">{{ account.name }}</span>
           </div>
           <div class="text-[0.875em] leading-[1.6] text-muted">
-            {{ account.legalName }}<template v-if="account.address">
-              <br>{{ account.address }}
-            </template><template v-if="contactLine">
-              <br>{{ contactLine }}
-            </template>
+            <span v-for="line in fromLines" :key="line" class="block">{{ line }}</span>
           </div>
         </div>
         <div class="flex flex-col gap-[0.375em] text-right">
@@ -100,7 +99,8 @@ const labelColour = computed(() => (isBold.value ? brand.value : '#6b6a65'))
       <section class="grid grid-cols-3 gap-[1.5em]">
         <div class="flex flex-col gap-[0.25em]">
           <span class="text-[0.75em] tracking-[0.08em] uppercase" :style="{ color: labelColour }">Bill to</span>
-          <span>{{ customer?.name ?? '[Choose a customer]' }}</span>
+          <span v-if="customer">{{ customer.name }}</span>
+          <span v-else class="text-faint">No customer selected</span>
           <span v-if="customer" class="text-[0.875em] whitespace-pre-line text-muted"><template v-if="customer.contactName">Attn: {{ customer.contactName }}<br></template>{{ customer.address }}</span>
         </div>
         <div class="flex flex-col gap-[0.25em]">
@@ -149,7 +149,7 @@ const labelColour = computed(() => (isBold.value ? brand.value : '#6b6a65'))
           </tr>
           <tr v-if="!lines.length">
             <td colspan="4" class="py-[1em] text-muted" :style="{ borderBottom: `1px solid ${rule}` }">
-              [Add line items]
+              No line items yet
             </td>
           </tr>
         </tbody>

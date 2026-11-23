@@ -183,7 +183,7 @@ async function importFile(event: Event) {
                 Stage
               </th>
               <th class="px-2 py-2.5 text-right">
-                Outstanding (GHS)
+                Outstanding ({{ account?.currency }})
               </th>
               <th class="px-2 py-2.5">
                 Owner
@@ -243,10 +243,10 @@ async function importFile(event: Event) {
         </div>
         <div class="grid grid-cols-2 gap-2.5">
           <div class="flex flex-col gap-1 rounded bg-paper p-3.5">
-            <span class="text-xs text-muted">Outstanding</span><span class="tabular text-[18px]">GHS {{ formatMoney(selected.outstanding) }}</span>
+            <span class="text-xs text-muted">Outstanding</span><span class="tabular text-[18px]">{{ formatMoney(selected.outstanding, account?.currency) }}</span>
           </div>
           <div class="flex flex-col gap-1 rounded bg-paper p-3.5">
-            <span class="text-xs text-muted">Lifetime billed</span><span class="tabular text-[18px]">GHS {{ formatMoney(selected.lifetimeBilled) }}</span>
+            <span class="text-xs text-muted">Lifetime billed</span><span class="tabular text-[18px]">{{ formatMoney(selected.lifetimeBilled, account?.currency) }}</span>
           </div>
         </div>
         <dl class="m-0 grid grid-cols-[96px_1fr] gap-x-3 gap-y-2.5 text-[13px]">
@@ -270,7 +270,7 @@ async function importFile(event: Event) {
           <dt class="text-muted">
             Billing
           </dt><dd class="m-0">
-            {{ selected.paymentTermsDays === null ? 'Account default terms' : termsLabel(selected.paymentTermsDays) }} · GHS
+            {{ selected.paymentTermsDays === null ? 'Account default terms' : termsLabel(selected.paymentTermsDays) }} · {{ account?.currency }}
           </dd>
           <dt class="text-muted">
             Owner

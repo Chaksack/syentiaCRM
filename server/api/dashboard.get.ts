@@ -129,8 +129,16 @@ export default defineEventHandler(async (event): Promise<DashboardData> => {
     })
   }
 
+  const setupMissing = [
+    !account!.legalName && 'legal name',
+    !account!.address && 'address',
+    !account!.email && 'billing email',
+    !account!.paymentDetails && 'payment details',
+  ].filter((v): v is string => !!v)
+
   return {
     account: toSummary(account!),
+    setupMissing,
     kpis,
     recentInvoices: recent.map(mapInvoiceListItem),
     chart,

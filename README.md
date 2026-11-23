@@ -12,17 +12,16 @@ Customers and invoices belong to one account.
 
 ```bash
 pnpm install
-cp .env.example .env   # then fill in DATABASE_URL and NUXT_SEED_ADMIN_PASSWORD
+cp .env.example .env   # then fill in DATABASE_URL, NUXT_SESSION_PASSWORD and the NUXT_SEED_* values
 pnpm dev               # http://localhost:3000
 ```
 
-On first start the app creates its tables and seeds:
-
-- an admin user from `NUXT_SEED_ADMIN_EMAIL` / `NUXT_SEED_ADMIN_PASSWORD` (a random password is
-  printed to the console if you leave it empty), and
-- demo data from the design (two accounts, customers, invoices, team), unless `NUXT_SEED_DEMO=false`.
-
-Seeding only runs when the `users` table is empty.
+On first start (empty database) the app creates its tables, the first admin
+(`NUXT_SEED_ADMIN_EMAIL` / `_NAME` / `_PASSWORD`; a random password is printed to the console if
+you leave it empty) and one blank billing account named `NUXT_SEED_ACCOUNT_NAME`. Sign in, fill in
+the account on **Accounts & branding**, change your password from the menu under your name, then
+add customers and invite the team. The `NUXT_SEED_*` values are only read while the database has
+no users.
 
 ## Environment
 
@@ -30,8 +29,8 @@ Seeding only runs when the `users` table is empty.
 | --- | --- |
 | `DATABASE_URL` | PostgreSQL connection string (Neon). Empty → local SQLite at `.data/syentia.sqlite`. |
 | `NUXT_SESSION_PASSWORD` | Session cookie key, 32+ characters. **Required in production.** |
-| `NUXT_SEED_ADMIN_EMAIL` / `_NAME` / `_PASSWORD` | First admin. |
-| `NUXT_SEED_DEMO` | `false` to skip demo data. |
+| `NUXT_SEED_ADMIN_EMAIL` / `_NAME` / `_PASSWORD` | First admin (first start only). |
+| `NUXT_SEED_ACCOUNT_NAME` | Name of the first billing account (first start only). |
 | `NUXT_PUBLIC_SITE_URL` | Public URL, used in invite links. |
 
 ## Layout

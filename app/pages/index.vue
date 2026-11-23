@@ -79,7 +79,7 @@ async function completeTask(taskId: string) {
           Overview <span class="text-faint">· {{ account?.name }}</span>
         </h1>
         <p class="m-0 text-muted">
-          {{ period }} · figures in GHS
+          {{ period }} · figures in {{ account?.currency }}
         </p>
       </div>
       <div class="flex flex-wrap gap-2">
@@ -93,6 +93,21 @@ async function completeTask(taskId: string) {
     </header>
 
     <template v-if="data">
+      <section
+        v-if="can('admin') && data.setupMissing.length"
+        class="flex flex-wrap items-center justify-between gap-4 rounded bg-surface-2 px-6 py-5"
+      >
+        <div class="flex flex-col gap-0.5">
+          <h2 class="m-0 text-[16px] font-medium">
+            Finish setting up {{ data.account.name }}
+          </h2>
+          <span class="text-[13px] text-ink-2">Add your {{ data.setupMissing.join(', ') }} so they appear on invoices.</span>
+        </div>
+        <NuxtLink to="/accounts" class="btn btn-sm !min-h-10">
+          Accounts &amp; branding
+        </NuxtLink>
+      </section>
+
       <section aria-label="Key figures" class="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-2.5">
         <div v-for="k in data.kpis" :key="k.label" class="flex flex-col gap-2.5 rounded bg-surface p-5">
           <span class="text-[13px] text-muted">{{ k.label }}</span>
@@ -136,7 +151,7 @@ async function completeTask(taskId: string) {
                     {{ formatDate(r.dueDate) }}
                   </td>
                   <td class="tabular text-right">
-                    {{ formatMoney(r.total) }}
+                    {{ formatMoney(r.total, r.currency === account?.currency ? undefined : r.currency) }}
                   </td>
                   <td><StatusPill :status="r.status" /></td>
                 </tr>

@@ -21,6 +21,11 @@ export const acceptInviteSchema = z.object({
   password: z.string().min(8, 'Use at least 8 characters').max(200),
 })
 
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Enter your current password'),
+  newPassword: z.string().min(8, 'Use at least 8 characters for the new password').max(200),
+})
+
 export const accountSchema = z.object({
   name: trimmed(80).min(1, 'Give the account a name'),
   mark: trimmed(3).min(1, 'Use 1–3 characters').transform(v => v.toUpperCase()),

@@ -54,6 +54,7 @@ export interface AccountSummary {
   mark: string
   color: string
   legalName: string
+  currency: Currency
 }
 
 export interface Account extends AccountSummary {
@@ -217,6 +218,8 @@ export interface FollowUp {
 
 export interface DashboardData {
   account: AccountSummary
+  /** Invoice details the account hasn't filled in yet (shown to admins as a setup prompt). */
+  setupMissing: string[]
   kpis: { label: string, value: number, money: boolean, note: string }[]
   recentInvoices: InvoiceListItem[]
   chart: { month: string, invoiced: number, collected: number }[]

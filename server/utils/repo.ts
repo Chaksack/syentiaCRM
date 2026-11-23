@@ -75,6 +75,7 @@ export function toSummary(a: Account): AccountSummary {
     mark: a.mark,
     color: a.color,
     legalName: a.legalName,
+    currency: a.currency,
   }
 }
 

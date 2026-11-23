@@ -7,6 +7,7 @@ const { account, accounts, setAccount } = useCurrentAccount()
 const route = useRoute()
 
 const menuOpen = ref(false)
+const passwordOpen = ref(false)
 const userMenuOpen = ref(false)
 const switcher = ref<HTMLElement>()
 const userMenu = ref<HTMLElement>()
@@ -154,10 +155,14 @@ watch(() => route.fullPath, () => {
         <p class="m-0 truncate px-2 py-1.5 text-xs text-muted">
           {{ user.email }}
         </p>
+        <button type="button" class="flex min-h-11 w-full cursor-pointer items-center gap-2.5 rounded border-0 bg-transparent px-2 text-left hover:bg-surface-2" @click="passwordOpen = true; userMenuOpen = false">
+          <AppIcon name="accounts" /> Change password
+        </button>
         <button type="button" class="flex min-h-11 w-full cursor-pointer items-center gap-2.5 rounded border-0 bg-transparent px-2 text-left hover:bg-surface-2" @click="logout">
           <AppIcon name="logout" /> Sign out
         </button>
       </div>
+      <ChangePasswordDialog v-model:open="passwordOpen" />
     </div>
   </aside>
 </template>

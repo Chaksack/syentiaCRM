@@ -46,6 +46,18 @@ const { data } = await useFetch('/api/invoices', { query })
 
 const accountById = computed(() => Object.fromEntries(accounts.value.map(a => [a.id, a])))
 
+// One currency label when every account in view bills in the same currency; otherwise amounts carry their own code.
+const currency = computed(() => {
+  const inView = account.value === 'all'
+    ? accounts.value
+    : accounts.value.filter(a => a.id === account.value)
+  const codes = new Set(inView.map(a => a.currency))
+  return codes.size === 1
+    ? [...codes][0]!
+    : ''
+})
+const totalLabel = (minor: number) => formatMoney(minor, currency.value || undefined)
+
 const tabs = computed(() => [
   { value: '' as const, label: 'All' },
   { value: 'draft' as const, label: 'Draft' },
@@ -98,22 +110,22 @@ const exportHref = computed(() => {
     <section v-if="data" aria-label="Totals" class="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-2.5">
       <div class="flex flex-col gap-1.5 rounded bg-surface p-[18px]">
         <span class="text-[13px] text-muted">Draft</span>
-        <span class="tabular text-[22px] tracking-[-0.02em]">GHS {{ formatMoney(data.totals.draft.amount) }}</span>
+        <span class="tabular text-[22px] tracking-[-0.02em]">{{ totalLabel(data.totals.draft.amount) }}</span>
         <span class="text-xs text-muted">{{ plural(data.totals.draft.count) }}</span>
       </div>
       <div class="flex flex-col gap-1.5 rounded bg-surface p-[18px]">
         <span class="text-[13px] text-muted">Awaiting payment</span>
-        <span class="tabular text-[22px] tracking-[-0.02em]">GHS {{ formatMoney(data.totals.awaiting.amount) }}</span>
+        <span class="tabular text-[22px] tracking-[-0.02em]">{{ totalLabel(data.totals.awaiting.amount) }}</span>
         <span class="text-xs text-muted">{{ plural(data.totals.awaiting.count) }}</span>
       </div>
       <div class="flex flex-col gap-1.5 rounded bg-surface p-[18px]">
         <span class="text-[13px] text-muted">Overdue</span>
-        <span class="tabular text-[22px] tracking-[-0.02em] text-danger">GHS {{ formatMoney(data.totals.overdue.amount) }}</span>
+        <span class="tabular text-[22px] tracking-[-0.02em] text-danger">{{ totalLabel(data.totals.overdue.amount) }}</span>
         <span class="text-xs text-muted">{{ plural(data.totals.overdue.count) }}</span>
       </div>
       <div class="flex flex-col gap-1.5 rounded bg-surface p-[18px]">
         <span class="text-[13px] text-muted">Paid · last 30 days</span>
-        <span class="tabular text-[22px] tracking-[-0.02em]">GHS {{ formatMoney(data.totals.paid30.amount) }}</span>
+        <span class="tabular text-[22px] tracking-[-0.02em]">{{ totalLabel(data.totals.paid30.amount) }}</span>
         <span class="text-xs text-muted">{{ plural(data.totals.paid30.count) }}</span>
       </div>
     </section>
@@ -164,7 +176,7 @@ const exportHref = computed(() => {
             <th>Issued</th>
             <th>Due</th>
             <th class="text-right">
-              Amount (GHS)
+              Amount{{ currency ? ` (${currency})` : '' }}
             </th>
             <th>Status</th>
           </tr>
@@ -193,7 +205,7 @@ const exportHref = computed(() => {
               {{ r.status === 'draft' ? '—' : formatDate(r.dueDate) }}
             </td>
             <td class="tabular text-right">
-              {{ formatMoney(r.total) }}
+              {{ formatMoney(r.total, r.currency === currency ? undefined : r.currency) }}
             </td>
             <td><StatusPill :status="r.status" /></td>
           </tr>
