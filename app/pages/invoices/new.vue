@@ -1,6 +1,6 @@
 <script setup lang="ts">
 definePageMeta({ permission: 'invoices.write' })
-useHead({ title: 'New invoice · syentiaCRM' })
+useHead({ title: 'New invoice · Syentia CRM' })
 
 const route = useRoute()
 const { accountId } = useCurrentAccount()

@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import type { Account, Currency, Invoice, InvoiceCustomer, InvoiceTemplate, PaymentMethod } from '#shared/types/domain'
+import type { Account, Adjustment, Currency, Invoice, InvoiceCustomer, InvoiceTemplate, PaymentMethod } from '#shared/types/domain'
 import { CURRENCIES, INVOICE_TEMPLATES, PAYMENT_METHODS, PAYMENT_TERMS } from '#shared/types/domain'
 import {
   addDays,
+  adjustmentLabel,
+  computeInvoice,
   daysBetween,
   formatDate,
   formatMoney,
-  invoiceTotals,
   lineAmount,
   parseMoney,
   PAYMENT_METHOD_LABEL,
@@ -28,8 +29,8 @@ const invoice = computed(() => data.value?.invoice ?? null)
 const editable = computed(() => invoice.value?.status === 'draft' && can('invoices.write'))
 useHead(() => ({
   title: invoice.value
-    ? `${invoice.value.number} · syentiaCRM`
-    : 'Invoice · syentiaCRM',
+    ? `${invoice.value.number} · Syentia CRM`
+    : 'Invoice · Syentia CRM',
 }))
 
 // ─── Draft editor state ─────────────────────────────────────────────────────
@@ -55,7 +56,7 @@ const draft = reactive({
   dueDate: '' as string,
   template: 'ledger' as InvoiceTemplate,
   notes: '',
-  taxRate: '0',
+  adjustments: [] as Adjustment[],
   items: [] as EditableItem[],
 })
 
@@ -68,7 +69,7 @@ function loadDraft(inv: Invoice) {
     dueDate: inv.dueDate ?? '',
     template: inv.template,
     notes: inv.notes,
-    taxRate: String(inv.taxRate),
+    adjustments: inv.adjustments.map(a => ({ ...a })),
     items: toEditable(inv),
   })
 }
@@ -116,8 +117,7 @@ const items = computed(() => draft.items.map((i) => {
     invalid: Number.isNaN(rate),
   }
 }))
-const taxRate = computed(() => Math.min(100, Math.max(0, Number.parseFloat(draft.taxRate) || 0)))
-const totals = computed(() => invoiceTotals(items.value, taxRate.value))
+const totals = computed(() => computeInvoice(items.value, draft.adjustments))
 const termsDays = computed(() => (draft.issueDate && draft.dueDate
   ? daysBetween(draft.issueDate, draft.dueDate)
   : null))
@@ -136,7 +136,7 @@ function pickAccount(id: string) {
   if (next) {
     draft.template = next.defaultTemplate
     draft.currency = next.currency
-    draft.taxRate = String(next.defaultTaxRate)
+    draft.adjustments = next.defaultAdjustments.map(a => ({ ...a }))
     if (draft.issueDate)
       draft.dueDate = addDays(draft.issueDate, next.paymentTermsDays)
   }
@@ -177,7 +177,7 @@ function payload() {
     dueDate: draft.dueDate || null,
     template: draft.template,
     notes: draft.notes,
-    taxRate: taxRate.value,
+    adjustments: draft.adjustments,
     items: items.value.map(({ description, quantity, rate }) => ({ description, quantity, rate })),
   }
 }
@@ -509,13 +509,39 @@ watch(() => invoice.value?.id, () => {
               <button type="button" class="min-h-10 cursor-pointer rounded border border-dashed border-border bg-transparent px-3.5 text-ink hover:bg-surface" @click="addLine">
                 + Add line
               </button>
-              <div class="tabular flex items-center gap-4 text-[13px]">
-                <label class="flex items-center gap-2 text-muted">Tax %
-                  <input v-model="draft.taxRate" inputmode="decimal" class="input input-sm tabular !w-20 text-right">
-                </label>
-                <span>Total <strong class="font-medium">{{ draft.currency }} {{ formatMoney(totals.total) }}</strong></span>
-              </div>
+              <span class="tabular text-[13px]">Subtotal <strong class="font-medium">{{ draft.currency }} {{ formatMoney(totals.subtotal) }}</strong></span>
             </div>
+          </div>
+
+          <div class="flex flex-col gap-2.5">
+            <h2 class="m-0 text-[13px] font-normal text-muted">
+              Discounts, taxes &amp; deductions
+              <span v-if="account.defaultAdjustments.length" class="text-faint">· defaults come from {{ account.name }}</span>
+            </h2>
+            <AdjustmentsEditor v-model="draft.adjustments" :currency="draft.currency" />
+            <dl class="tabular m-0 ml-auto flex w-full max-w-[320px] flex-col gap-1.5 rounded bg-surface p-3.5 text-[13px]">
+              <div class="flex justify-between">
+                <dt class="text-muted">
+                  Subtotal
+                </dt><dd class="m-0">
+                  {{ formatMoney(totals.subtotal) }}
+                </dd>
+              </div>
+              <div v-for="(l, i) in totals.lines" :key="i" class="flex justify-between gap-3">
+                <dt class="text-muted">
+                  {{ l.kind === 'deduction' ? 'Less ' : '' }}{{ adjustmentLabel(l) }}
+                </dt>
+                <dd class="m-0">
+                  {{ l.kind === 'tax' ? '' : '−' }}{{ formatMoney(l.amount) }}
+                </dd>
+              </div>
+              <div class="mt-1 flex justify-between border-t border-line pt-2 font-medium">
+                <dt>{{ totals.deductions ? 'Amount payable' : 'Total due' }}</dt>
+                <dd class="m-0">
+                  {{ draft.currency }} {{ formatMoney(totals.payable) }}
+                </dd>
+              </div>
+            </dl>
           </div>
 
           <fieldset class="m-0 flex flex-col gap-2.5 border-0 p-0">
@@ -609,15 +635,15 @@ watch(() => invoice.value?.id, () => {
           <InvoiceDocument
             v-if="editable"
             :number="invoice.number" :template="draft.template" :currency="draft.currency"
-            :issue-date="draft.issueDate || null" :due-date="draft.dueDate || null" :notes="draft.notes" :tax-rate="taxRate"
-            :items="items" :subtotal="totals.subtotal" :tax="totals.tax" :total="totals.total"
+            :issue-date="draft.issueDate || null" :due-date="draft.dueDate || null" :notes="draft.notes"
+            :items="items" :breakdown="totals"
             :account="account" :customer="previewCustomer" size="preview"
           />
           <InvoiceDocument
             v-else
             :number="invoice.number" :template="invoice.template" :currency="invoice.currency"
-            :issue-date="invoice.issueDate" :due-date="invoice.dueDate" :notes="invoice.notes" :tax-rate="invoice.taxRate"
-            :items="invoice.items" :subtotal="invoice.subtotal" :tax="invoice.tax" :total="invoice.total" :amount-paid="invoice.amountPaid"
+            :issue-date="invoice.issueDate" :due-date="invoice.dueDate" :notes="invoice.notes"
+            :items="invoice.items" :breakdown="invoice.breakdown" :amount-paid="invoice.amountPaid"
             :account="invoice.account" :customer="invoice.customer" size="preview"
           />
         </div>

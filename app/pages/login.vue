@@ -1,6 +1,6 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'auth' })
-useHead({ title: 'Sign in · syentiaCRM' })
+useHead({ title: 'Sign in · Syentia CRM' })
 
 const route = useRoute()
 const { refresh } = useAuth()

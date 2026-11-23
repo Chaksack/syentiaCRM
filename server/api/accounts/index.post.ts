@@ -7,7 +7,7 @@ export default defineEventHandler(async (event) => {
   const id = newId('acc')
   await db.prepare(`
     INSERT INTO accounts (id, name, mark, legal_name, tax_id, address, email, phone, color, number_prefix, next_number, number_padding,
-      currency, payment_terms_days, default_tax_rate, payment_details, invoice_notes, default_template, is_primary, created_at)
+      currency, payment_terms_days, default_adjustments, payment_details, invoice_notes, default_template, is_primary, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT CASE WHEN COUNT(*) = 0 THEN 1 ELSE 0 END FROM accounts), ?)
   `).run(
     id,
@@ -24,7 +24,7 @@ export default defineEventHandler(async (event) => {
     input.numberPadding,
     input.currency,
     input.paymentTermsDays,
-    input.defaultTaxRate,
+    JSON.stringify(input.defaultAdjustments),
     input.paymentDetails,
     input.invoiceNotes,
     input.defaultTemplate,

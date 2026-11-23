@@ -1,4 +1,4 @@
-import { invoiceTotals, lineAmount } from '#shared/utils/format'
+import { computeInvoice, lineAmount } from '#shared/utils/format'
 import { invoiceUpdateSchema } from '#shared/utils/schemas'
 
 /** Autosave target for the draft editor. Switching account re-numbers the draft from the new account. */
@@ -21,8 +21,8 @@ export default defineEventHandler(async (event) => {
   }
 
   const items = input.items ?? invoice.items
-  const taxRate = input.taxRate ?? invoice.taxRate
-  const { subtotal, tax, total } = invoiceTotals(items, taxRate)
+  const adjustments = input.adjustments ?? invoice.adjustments
+  const b = computeInvoice(items, adjustments)
 
   await transaction(db, async (tx) => {
     const number = accountId !== invoice.accountId
@@ -30,7 +30,7 @@ export default defineEventHandler(async (event) => {
       : invoice.number
     await tx.prepare(`
       UPDATE invoices SET account_id = ?, customer_id = ?, number = ?, currency = ?, issue_date = ?, due_date = ?, template = ?,
-        notes = ?, tax_rate = ?, subtotal = ?, tax = ?, total = ?, updated_at = ?
+        notes = ?, adjustments = ?, tax_rate = 0, subtotal = ?, discount = ?, tax = ?, deductions = ?, total = ?, updated_at = ?
       WHERE id = ?
     `).run(
       accountId,
@@ -45,10 +45,12 @@ export default defineEventHandler(async (event) => {
         : invoice.dueDate,
       input.template ?? invoice.template,
       input.notes ?? invoice.notes,
-      taxRate,
-      subtotal,
-      tax,
-      total,
+      JSON.stringify(adjustments),
+      b.subtotal,
+      b.discount,
+      b.tax,
+      b.deductions,
+      b.payable, // `total` is what the customer owes — outstanding balances and payments work from it
       nowIso(),
       invoice.id,
     )

@@ -2,7 +2,7 @@
 import type { FollowUp } from '#shared/types/domain'
 import { formatDate, formatMoney, monthLong, todayIso } from '#shared/utils/format'
 
-useHead({ title: 'Dashboard · syentiaCRM' })
+useHead({ title: 'Dashboard · Syentia CRM' })
 
 const { user, can } = useAuth()
 const { account, accountId } = useCurrentAccount()

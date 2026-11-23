@@ -8,7 +8,7 @@ export default defineEventHandler(async (event) => {
   const db = await useDb()
   await db.prepare(`
     UPDATE accounts SET name = ?, mark = ?, legal_name = ?, tax_id = ?, address = ?, email = ?, phone = ?, color = ?,
-      number_prefix = ?, next_number = ?, number_padding = ?, currency = ?, payment_terms_days = ?, default_tax_rate = ?,
+      number_prefix = ?, next_number = ?, number_padding = ?, currency = ?, payment_terms_days = ?, default_adjustments = ?,
       payment_details = ?, invoice_notes = ?, default_template = ?
     WHERE id = ?
   `).run(
@@ -25,7 +25,7 @@ export default defineEventHandler(async (event) => {
     input.numberPadding,
     input.currency,
     input.paymentTermsDays,
-    input.defaultTaxRate,
+    JSON.stringify(input.defaultAdjustments),
     input.paymentDetails,
     input.invoiceNotes,
     input.defaultTemplate,

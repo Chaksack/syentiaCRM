@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { Account, InvoiceCustomer, InvoiceItem, InvoiceTemplate } from '#shared/types/domain'
-import { daysBetween, formatDate, formatMoney, termsLabel } from '#shared/utils/format'
+import type { Account, InvoiceBreakdown, InvoiceCustomer, InvoiceItem, InvoiceTemplate } from '#shared/types/domain'
+import { adjustmentLabel, daysBetween, formatDate, formatMoney, termsLabel } from '#shared/utils/format'
 
 /**
  * One invoice in one of the three templates. Sized in `em` so the same markup renders as the
@@ -13,11 +13,8 @@ const props = withDefaults(defineProps<{
   issueDate: string | null
   dueDate: string | null
   notes: string
-  taxRate: number
   items: InvoiceItem[]
-  subtotal: number
-  tax: number
-  total: number
+  breakdown: InvoiceBreakdown
   amountPaid?: number
   account: Account
   customer: InvoiceCustomer | null
@@ -28,7 +25,10 @@ const brand = computed(() => props.account.color)
 const isBold = computed(() => props.template === 'bold')
 const isMinimal = computed(() => props.template === 'minimal')
 const rule = computed(() => (isMinimal.value ? '#f2f2ef' : '#e2e2df'))
-const balance = computed(() => props.total - props.amountPaid)
+const balance = computed(() => props.breakdown.payable - props.amountPaid)
+const discounts = computed(() => props.breakdown.lines.filter(l => l.kind === 'discount'))
+const taxes = computed(() => props.breakdown.lines.filter(l => l.kind === 'tax'))
+const deductions = computed(() => props.breakdown.lines.filter(l => l.kind === 'deduction'))
 const lines = computed(() => props.items.filter(i => i.description.trim() || i.amount))
 const paymentLines = computed(() => props.account.paymentDetails.split('\n').map(l => l.trim()).filter(Boolean))
 const terms = computed(() => (props.issueDate && props.dueDate
@@ -158,24 +158,41 @@ const labelColour = computed(() => (isBold.value ? brand.value : '#6b6a65'))
       <section class="flex justify-end">
         <div class="tabular flex w-[18.75em] flex-col gap-[0.625em]">
           <div class="flex justify-between">
-            <span class="text-muted">Subtotal</span><span>{{ money(subtotal) }}</span>
+            <span class="text-muted">Subtotal</span><span>{{ money(breakdown.subtotal) }}</span>
           </div>
-          <div class="flex justify-between">
-            <span class="text-muted">Tax · {{ taxRate }}%</span><span>{{ money(tax) }}</span>
+          <div v-for="(l, i) in discounts" :key="`d${i}`" class="flex justify-between gap-[1em]">
+            <span class="text-muted">{{ adjustmentLabel(l) }}</span><span>−{{ money(l.amount) }}</span>
+          </div>
+          <div v-if="discounts.length && taxes.length" class="flex justify-between">
+            <span class="text-muted">Amount before tax</span><span>{{ money(breakdown.net) }}</span>
+          </div>
+          <div v-for="(l, i) in taxes" :key="`t${i}`" class="flex justify-between gap-[1em]">
+            <span class="text-muted">{{ adjustmentLabel(l) }}</span><span>{{ money(l.amount) }}</span>
+          </div>
+          <div v-if="taxes.length > 1" class="flex justify-between">
+            <span class="text-muted">Total taxes &amp; levies</span><span>{{ money(breakdown.tax) }}</span>
           </div>
           <div
             v-if="isBold"
             class="flex items-center justify-between rounded px-[1em] py-[0.875em] text-paper"
             :style="{ background: brand }"
           >
-            <span>Total due</span><span class="text-[1.375em] tracking-[-0.02em]">{{ currency }} {{ money(total) }}</span>
+            <span>{{ deductions.length ? 'Total' : 'Total due' }}</span><span class="text-[1.375em] tracking-[-0.02em]">{{ currency }} {{ money(breakdown.total) }}</span>
           </div>
           <div
             v-else class="flex items-baseline justify-between pt-[0.875em]"
             :style="{ borderTop: isMinimal ? '1px solid #cdcdc9' : `2px solid ${brand}` }"
           >
-            <span>Total due</span><span class="text-[1.625em] tracking-[-0.02em]">{{ currency }} {{ money(total) }}</span>
+            <span>{{ deductions.length ? 'Total' : 'Total due' }}</span><span class="text-[1.625em] tracking-[-0.02em]">{{ currency }} {{ money(breakdown.total) }}</span>
           </div>
+          <template v-if="deductions.length">
+            <div v-for="(l, i) in deductions" :key="`w${i}`" class="flex justify-between gap-[1em]">
+              <span class="text-muted">Less {{ adjustmentLabel(l) }}</span><span>−{{ money(l.amount) }}</span>
+            </div>
+            <div class="flex justify-between font-medium">
+              <span>Amount payable</span><span>{{ currency }} {{ money(breakdown.payable) }}</span>
+            </div>
+          </template>
           <template v-if="amountPaid > 0">
             <div class="flex justify-between">
               <span class="text-muted">Paid</span><span>−{{ money(amountPaid) }}</span>

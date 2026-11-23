@@ -48,6 +48,41 @@ export const PAYMENT_METHODS = [
 ] as const
 export type PaymentMethod = typeof PAYMENT_METHODS[number]
 
+/**
+ * Adjustments applied after the line items, in this order: discounts reduce the subtotal; taxes
+ * and levies are charged on the discounted amount; deductions (e.g. withholding tax) come off the
+ * total and leave the amount the customer actually pays.
+ */
+export const ADJUSTMENT_KINDS = ['discount', 'tax', 'deduction'] as const
+export type AdjustmentKind = typeof ADJUSTMENT_KINDS[number]
+
+export interface Adjustment {
+  kind: AdjustmentKind
+  label: string
+  mode: 'percent' | 'fixed'
+  /** A percentage (15 = 15%) or, for `fixed`, an amount in minor units. */
+  value: number
+}
+
+export interface AdjustmentLine extends Adjustment {
+  /** What this adjustment comes to on this invoice, minor units (always positive). */
+  amount: number
+}
+
+export interface InvoiceBreakdown {
+  subtotal: number
+  lines: AdjustmentLine[]
+  discount: number
+  /** Subtotal less discounts — the base taxes and deductions are worked out on. */
+  net: number
+  tax: number
+  /** Net plus taxes and levies. */
+  total: number
+  deductions: number
+  /** Total less deductions: what the customer pays. */
+  payable: number
+}
+
 export interface AccountSummary {
   id: string
   name: string
@@ -69,7 +104,8 @@ export interface Account extends AccountSummary {
   numberPadding: number
   currency: Currency
   paymentTermsDays: number
-  defaultTaxRate: number
+  /** Copied onto every new invoice from this account (e.g. NHIL, GETFund levy, VAT). */
+  defaultAdjustments: Adjustment[]
   paymentDetails: string
   invoiceNotes: string
   defaultTemplate: InvoiceTemplate
@@ -183,9 +219,9 @@ export interface InvoiceCustomer {
 
 export interface Invoice extends InvoiceListItem {
   notes: string
-  taxRate: number
-  subtotal: number
-  tax: number
+  adjustments: Adjustment[]
+  /** Subtotal, each adjustment's amount, and what's payable — `total` on the list item equals `breakdown.payable`. */
+  breakdown: InvoiceBreakdown
   sentAt: string | null
   paidAt: string | null
   createdAt: string

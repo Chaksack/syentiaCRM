@@ -23,10 +23,10 @@ export default defineEventHandler(async (event) => {
   await transaction(db, async (tx) => {
     const number = await allocateInvoiceNumber(tx, accountId)
     await tx.prepare(`
-      INSERT INTO invoices (id, account_id, customer_id, number, status, template, currency, issue_date, due_date, notes, tax_rate,
-        subtotal, tax, total, amount_paid, created_by, created_at, updated_at)
-      VALUES (?, ?, ?, ?, 'draft', ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, ?, ?, ?)
-    `).run(id, accountId, customerId ?? null, number, account.defaultTemplate, account.currency, today, addDays(today, terms), account.invoiceNotes, account.defaultTaxRate, user.id, now, now)
+      INSERT INTO invoices (id, account_id, customer_id, number, status, template, currency, issue_date, due_date, notes, adjustments,
+        subtotal, discount, tax, deductions, total, amount_paid, created_by, created_at, updated_at)
+      VALUES (?, ?, ?, ?, 'draft', ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, 0, 0, ?, ?, ?)
+    `).run(id, accountId, customerId ?? null, number, account.defaultTemplate, account.currency, today, addDays(today, terms), account.invoiceNotes, JSON.stringify(account.defaultAdjustments), user.id, now, now)
     await tx.prepare('INSERT INTO invoice_items (id, invoice_id, position, description, quantity, rate, amount) VALUES (?, ?, 0, \'\', 1, 0, 0)')
       .run(newId('itm'), id)
   })

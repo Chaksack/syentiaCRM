@@ -41,8 +41,8 @@ onMounted(() => {
       <div class="shadow-[0_12px_40px_rgb(38_37_30/0.18)] print:shadow-none">
         <InvoiceDocument
           :number="invoice.number" :template="invoice.template" :currency="invoice.currency"
-          :issue-date="invoice.issueDate" :due-date="invoice.dueDate" :notes="invoice.notes" :tax-rate="invoice.taxRate"
-          :items="invoice.items" :subtotal="invoice.subtotal" :tax="invoice.tax" :total="invoice.total"
+          :issue-date="invoice.issueDate" :due-date="invoice.dueDate" :notes="invoice.notes"
+          :items="invoice.items" :breakdown="invoice.breakdown"
           :amount-paid="invoice.amountPaid" :account="invoice.account" :customer="invoice.customer"
           size="page"
         />

@@ -2,7 +2,7 @@
 import type { Customer, CustomerStage } from '#shared/types/domain'
 import { formatDate, formatMoney, initials, relativeTime, termsLabel } from '#shared/utils/format'
 
-useHead({ title: 'Customers · syentiaCRM' })
+useHead({ title: 'Customers · Syentia CRM' })
 
 const route = useRoute()
 const router = useRouter()

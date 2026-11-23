@@ -21,18 +21,19 @@ const fields = [
   'numberPadding',
   'currency',
   'paymentTermsDays',
-  'defaultTaxRate',
+  'defaultAdjustments',
   'paymentDetails',
   'invoiceNotes',
   'defaultTemplate',
 ] as const
 type Form = Pick<Account, typeof fields[number]>
 
-const pick = (a: Account): Form => Object.fromEntries(fields.map(f => [f, a[f]])) as Form
+// Deep copy so editing the default adjustments never mutates the saved account until Save.
+const pick = (a: Account): Form => JSON.parse(JSON.stringify(Object.fromEntries(fields.map(f => [f, a[f]])))) as Form
 const form = reactive<Form>(pick(props.account))
 watch(() => props.account, a => Object.assign(form, pick(a)))
 
-const dirty = computed(() => fields.some(f => String(form[f]) !== String(props.account[f])))
+const dirty = computed(() => fields.some(f => JSON.stringify(form[f]) !== JSON.stringify(props.account[f])))
 const swatches = computed(() => [
   ...new Set([props.account.color, ...BRAND_COLORS]),
 ].slice(0, 5))
@@ -199,11 +200,16 @@ function thumb(t: InvoiceTemplate) {
             <option v-for="d in PAYMENT_TERMS" :key="d" :value="d">{{ termsLabel(d) }}</option>
           </select>
         </label>
-        <label class="field">Default tax %<input v-model.number="form.defaultTaxRate" class="input tabular" type="number" min="0" max="100" step="0.01"></label>
-        <div class="field">
+        <div class="field col-span-2">
           <span>Next invoice</span>
           <span class="tabular flex min-h-11 items-center text-ink">{{ nextPreview }}</span>
         </div>
+      </div>
+
+      <div class="flex flex-col gap-2">
+        <span class="text-[13px] text-muted">Discounts, taxes &amp; deductions on new invoices</span>
+        <AdjustmentsEditor v-model="form.defaultAdjustments" :currency="form.currency" empty-text="None — new invoices start without taxes or discounts." />
+        <span class="text-xs text-muted">Each invoice starts with these and can change them. Ghana rates since 1 January 2026: NHIL 2.5%, GETFund levy 2.5%, VAT 15%, all on the same base.</span>
       </div>
 
       <label class="field">Payment details shown on invoices

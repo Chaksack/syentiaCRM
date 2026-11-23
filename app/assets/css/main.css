@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Design tokens from the syentiaCRM canvas. */
+/* Design tokens from the Syentia CRM canvas. */
 @theme {
   --font-sans: Inter, system-ui, sans-serif;
 

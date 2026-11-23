@@ -1,6 +1,6 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'auth' })
-useHead({ title: 'Join syentiaCRM' })
+useHead({ title: 'Join Syentia CRM' })
 
 const route = useRoute()
 const token = computed(() => String(route.params.token))

@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import {
+  ADJUSTMENT_KINDS,
   CUSTOMER_STAGES,
   INVOICE_TEMPLATES,
   MEMBER_STATUSES,
@@ -11,6 +12,17 @@ const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use a YYYY-MM-DD date')
 const hexColor = z.string().regex(/^#[0-9a-f]{6}$/i, 'Use a hex colour like #26251e')
 const currency = z.enum(['GHS', 'USD', 'EUR', 'GBP'])
 const trimmed = (max: number) => z.string().trim().max(max)
+
+export const adjustmentSchema = z.object({
+  kind: z.enum(ADJUSTMENT_KINDS),
+  label: trimmed(60),
+  mode: z.enum(['percent', 'fixed']),
+  value: z.coerce.number().min(0, 'Adjustments can’t be negative'),
+}).refine(a => a.mode === 'fixed' || a.value <= 100, {
+  message: 'A percentage can’t be more than 100%',
+  path: ['value'],
+})
+const adjustments = z.array(adjustmentSchema).max(20)
 
 export const loginSchema = z.object({
   email: z.string().trim().toLowerCase().email('Enter a valid email address'),
@@ -40,7 +52,7 @@ export const accountSchema = z.object({
   numberPadding: z.coerce.number().int().min(1).max(8).default(4),
   currency,
   paymentTermsDays: z.coerce.number().int().min(0).max(365),
-  defaultTaxRate: z.coerce.number().min(0).max(100),
+  defaultAdjustments: adjustments.default([]),
   paymentDetails: trimmed(1000),
   invoiceNotes: trimmed(1000),
   defaultTemplate: z.enum(INVOICE_TEMPLATES),
@@ -92,7 +104,7 @@ export const invoiceUpdateSchema = z.object({
   dueDate: isoDate.nullable(),
   template: z.enum(INVOICE_TEMPLATES),
   notes: trimmed(2000),
-  taxRate: z.coerce.number().min(0).max(100),
+  adjustments,
   items: z.array(invoiceItemSchema).max(200),
 }).partial()
 export type InvoiceUpdateInput = z.infer<typeof invoiceUpdateSchema>

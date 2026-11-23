@@ -3,7 +3,7 @@ import type { Account } from '#shared/types/domain'
 import { BRAND_COLORS } from '#shared/utils/format'
 
 definePageMeta({ permission: 'admin' })
-useHead({ title: 'Accounts & branding · syentiaCRM' })
+useHead({ title: 'Accounts & branding · Syentia CRM' })
 
 const { refresh: refreshSession } = useAuth()
 const toast = useToast()
@@ -43,7 +43,7 @@ async function addAccount() {
         numberPadding: 4,
         currency: 'GHS',
         paymentTermsDays: 30,
-        defaultTaxRate: 0,
+        defaultAdjustments: [],
         paymentDetails: '',
         invoiceNotes: 'Thank you for your business.',
         defaultTemplate: 'ledger',

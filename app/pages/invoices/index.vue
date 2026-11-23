@@ -2,7 +2,7 @@
 import type { InvoiceStatus } from '#shared/types/domain'
 import { formatDate, formatMoney, TEMPLATE_INFO } from '#shared/utils/format'
 
-useHead({ title: 'Invoices · syentiaCRM' })
+useHead({ title: 'Invoices · Syentia CRM' })
 
 const route = useRoute()
 const router = useRouter()

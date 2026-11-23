@@ -1,4 +1,4 @@
-import type { CustomerStage, InvoiceItem, InvoiceStatus, InvoiceTemplate, PaymentMethod } from '../types/domain'
+import type { Adjustment, AdjustmentKind, AdjustmentLine, CustomerStage, InvoiceBreakdown, InvoiceItem, InvoiceStatus, InvoiceTemplate, PaymentMethod } from '../types/domain'
 
 const MONTHS = [
   'Jan',
@@ -53,11 +53,239 @@ export function lineAmount(quantity: number, rate: number): number {
   return Math.round(quantity * rate)
 }
 
-export function invoiceTotals(items: Pick<InvoiceItem, 'quantity' | 'rate'>[], taxRate: number) {
+const KIND_ORDER: Record<AdjustmentKind, number> = { discount: 0, tax: 1, deduction: 2 }
+
+/**
+ * Works out an invoice: subtotal → discounts → taxes & levies (each on the discounted amount, not
+ * on each other, as under Ghana's VAT Act 2025) → deductions such as withholding tax (on the
+ * discounted amount, before tax) → amount payable. Used by the editor's live preview and by the
+ * server when saving, so both always agree.
+ */
+export function computeInvoice(items: Pick<InvoiceItem, 'quantity' | 'rate'>[], adjustments: Adjustment[]): InvoiceBreakdown {
   const subtotal = items.reduce((sum, item) => sum + lineAmount(item.quantity, item.rate), 0)
-  const tax = Math.round(subtotal * taxRate / 100)
-  return { subtotal, tax, total: subtotal + tax }
+  const ordered = adjustments
+    .map((a, i) => ({ a, i }))
+    .sort((x, y) => KIND_ORDER[x.a.kind] - KIND_ORDER[y.a.kind] || x.i - y.i)
+    .map(x => x.a)
+
+  const lines: AdjustmentLine[] = []
+  const amountOf = (a: Adjustment, base: number) => Math.max(0, a.mode === 'percent'
+    ? Math.round(base * a.value / 100)
+    : Math.round(a.value))
+
+  let discount = 0
+  for (const a of ordered.filter(a => a.kind === 'discount')) {
+    const amount = Math.min(amountOf(a, subtotal), subtotal - discount) // never below zero
+    discount += amount
+    lines.push({ ...a, amount })
+  }
+  const net = subtotal - discount
+
+  let tax = 0
+  for (const a of ordered.filter(a => a.kind === 'tax')) {
+    const amount = amountOf(a, net)
+    tax += amount
+    lines.push({ ...a, amount })
+  }
+  const total = net + tax
+
+  let deductions = 0
+  for (const a of ordered.filter(a => a.kind === 'deduction')) {
+    const amount = Math.min(amountOf(a, net), total - deductions)
+    deductions += amount
+    lines.push({ ...a, amount })
+  }
+
+  return {
+    subtotal,
+    lines,
+    discount,
+    net,
+    tax,
+    total,
+    deductions,
+    payable: total - deductions,
+  }
 }
+
+/** "VAT · 15%" or "Discount" (fixed amounts carry no rate). */
+export function adjustmentLabel(a: Adjustment): string {
+  const name = a.label.trim() || (a.kind === 'discount'
+    ? 'Discount'
+    : a.kind === 'tax'
+      ? 'Tax'
+      : 'Deduction')
+  return a.mode === 'percent'
+    ? `${name} · ${Number(a.value.toFixed(3))}%`
+    : name
+}
+
+/**
+ * Starting points for the "Add" menu. Ghana rates as of the VAT Act 2025 (Act 1151), in force
+ * 1 January 2026: VAT 15%, NHIL 2.5% and GETFund levy 2.5%, all on the same base. Every rate is
+ * editable on the invoice — confirm current rates with GRA or your accountant.
+ */
+export const ADJUSTMENT_PRESETS: { group: string, options: { id: string, name: string, adjustments: Adjustment[] }[] }[] = [
+  {
+    group: 'Discounts',
+    options: [
+      {
+        id: 'discount-percent',
+        name: 'Discount (%)',
+        adjustments: [
+          {
+            kind: 'discount',
+            label: 'Discount',
+            mode: 'percent',
+            value: 10,
+          },
+        ],
+      },
+      {
+        id: 'discount-fixed',
+        name: 'Discount (amount)',
+        adjustments: [
+          {
+            kind: 'discount',
+            label: 'Discount',
+            mode: 'fixed',
+            value: 0,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    group: 'Taxes & levies (Ghana)',
+    options: [
+      {
+        id: 'gh-vat-all',
+        name: 'NHIL + GETFund + VAT (20%)',
+        adjustments: [
+          {
+            kind: 'tax',
+            label: 'NHIL',
+            mode: 'percent',
+            value: 2.5,
+          },
+          {
+            kind: 'tax',
+            label: 'GETFund levy',
+            mode: 'percent',
+            value: 2.5,
+          },
+          {
+            kind: 'tax',
+            label: 'VAT',
+            mode: 'percent',
+            value: 15,
+          },
+        ],
+      },
+      {
+        id: 'gh-nhil',
+        name: 'NHIL (2.5%)',
+        adjustments: [
+          {
+            kind: 'tax',
+            label: 'NHIL',
+            mode: 'percent',
+            value: 2.5,
+          },
+        ],
+      },
+      {
+        id: 'gh-getfund',
+        name: 'GETFund levy (2.5%)',
+        adjustments: [
+          {
+            kind: 'tax',
+            label: 'GETFund levy',
+            mode: 'percent',
+            value: 2.5,
+          },
+        ],
+      },
+      {
+        id: 'gh-vat',
+        name: 'VAT (15%)',
+        adjustments: [
+          {
+            kind: 'tax',
+            label: 'VAT',
+            mode: 'percent',
+            value: 15,
+          },
+        ],
+      },
+      {
+        id: 'tax-custom',
+        name: 'Other tax or levy…',
+        adjustments: [
+          {
+            kind: 'tax',
+            label: '',
+            mode: 'percent',
+            value: 0,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    group: 'Deductions',
+    options: [
+      {
+        id: 'wht-services',
+        name: 'Withholding tax · services (7.5%)',
+        adjustments: [
+          {
+            kind: 'deduction',
+            label: 'Withholding tax',
+            mode: 'percent',
+            value: 7.5,
+          },
+        ],
+      },
+      {
+        id: 'wht-works',
+        name: 'Withholding tax · works (5%)',
+        adjustments: [
+          {
+            kind: 'deduction',
+            label: 'Withholding tax',
+            mode: 'percent',
+            value: 5,
+          },
+        ],
+      },
+      {
+        id: 'wht-goods',
+        name: 'Withholding tax · goods (3%)',
+        adjustments: [
+          {
+            kind: 'deduction',
+            label: 'Withholding tax',
+            mode: 'percent',
+            value: 3,
+          },
+        ],
+      },
+      {
+        id: 'deduction-custom',
+        name: 'Other deduction…',
+        adjustments: [
+          {
+            kind: 'deduction',
+            label: '',
+            mode: 'percent',
+            value: 0,
+          },
+        ],
+      },
+    ],
+  },
+]
 
 export function todayIso(): string {
   return toIsoDate(new Date())

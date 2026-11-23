@@ -2,6 +2,7 @@ import type {
   Account,
   AccountSummary,
   ActivityType,
+  Adjustment,
   Currency,
   Customer,
   CustomerStage,
@@ -15,7 +16,8 @@ import type {
   Role,
 } from '#shared/types/domain'
 import type { Db } from './db'
-import { formatInvoiceNumber, todayIso } from '#shared/utils/format'
+import { computeInvoice, formatInvoiceNumber, todayIso } from '#shared/utils/format'
+import { adjustmentSchema } from '#shared/utils/schemas'
 import { placeholders } from './auth'
 import { newId, nowIso } from './db'
 
@@ -29,6 +31,24 @@ function num(v: unknown): number {
 const bool = (v: unknown): boolean => v === true || v === 1 || v === '1' || v === 't'
 
 type Row = Record<string, any>
+
+/** Stored adjustments JSON → validated list (anything malformed is dropped rather than breaking the page). */
+export function parseAdjustments(json: unknown): Adjustment[] {
+  try {
+    const raw = JSON.parse(String(json || '[]'))
+    return Array.isArray(raw)
+      ? raw.flatMap((a) => {
+          const r = adjustmentSchema.safeParse(a)
+          return r.success
+            ? [r.data]
+            : []
+        })
+      : []
+  }
+  catch {
+    return []
+  }
+}
 
 export function uploadUrl(key: string | null | undefined): string | null {
   return key
@@ -56,7 +76,7 @@ export function mapAccount(r: Row): Account {
     numberPadding: num(r.number_padding),
     currency: r.currency as Currency,
     paymentTermsDays: num(r.payment_terms_days),
-    defaultTaxRate: num(r.default_tax_rate),
+    defaultAdjustments: parseAdjustments(r.default_adjustments),
     paymentDetails: r.payment_details,
     invoiceNotes: r.invoice_notes,
     defaultTemplate: r.default_template as InvoiceTemplate,
@@ -253,23 +273,36 @@ export async function getInvoice(db: Db, id: string): Promise<Invoice | null> {
     ? await db.prepare('SELECT id, name, contact_name, address, email FROM customers WHERE id = ?').get(row.customer_id) as Row | undefined
     : undefined
 
+  const mappedItems = items.map(it => ({
+    id: it.id,
+    description: it.description,
+    quantity: num(it.quantity),
+    rate: num(it.rate),
+    amount: num(it.amount),
+  }))
+  let adjustments = parseAdjustments(row.adjustments)
+  // Invoices saved before adjustments existed carried a single tax rate.
+  if (!adjustments.length && num(row.tax_rate) > 0) {
+    adjustments = [
+      {
+        kind: 'tax',
+        label: 'Tax',
+        mode: 'percent',
+        value: num(row.tax_rate),
+      },
+    ]
+  }
+
   return {
     ...mapInvoiceListItem(row),
     notes: row.notes,
-    taxRate: num(row.tax_rate),
-    subtotal: num(row.subtotal),
-    tax: num(row.tax),
+    adjustments,
+    breakdown: computeInvoice(mappedItems, adjustments),
     sentAt: row.sent_at ?? null,
     paidAt: row.paid_at ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-    items: items.map(it => ({
-      id: it.id,
-      description: it.description,
-      quantity: num(it.quantity),
-      rate: num(it.rate),
-      amount: num(it.amount),
-    })),
+    items: mappedItems,
     payments: payments.map(p => ({
       id: p.id,
       amount: num(p.amount),

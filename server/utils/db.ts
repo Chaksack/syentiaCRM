@@ -330,4 +330,21 @@ async function migrate(db: Db) {
     );
     CREATE INDEX IF NOT EXISTS tasks_account_idx ON tasks(account_id, done);
   `)
+
+  // Added after first release — discounts, taxes & levies, and deductions on invoices.
+  await addColumn(db, 'invoices', 'adjustments', 'TEXT NOT NULL DEFAULT \'[]\'')
+  await addColumn(db, 'invoices', 'discount', 'BIGINT NOT NULL DEFAULT 0')
+  await addColumn(db, 'invoices', 'deductions', 'BIGINT NOT NULL DEFAULT 0')
+  await addColumn(db, 'accounts', 'default_adjustments', 'TEXT NOT NULL DEFAULT \'[]\'')
+}
+
+/** ALTER TABLE … ADD COLUMN, skipped if the column is already there (SQLite has no IF NOT EXISTS for this). */
+async function addColumn(db: Db, table: string, column: string, definition: string) {
+  if (db.dialect === 'postgresql') {
+    await db.exec(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS ${column} ${definition}`)
+    return
+  }
+  const columns = await db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]
+  if (!columns.some(c => c.name === column))
+    await db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`)
 }

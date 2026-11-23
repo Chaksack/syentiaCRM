@@ -23,8 +23,19 @@ export default defineNuxtConfig({
   app: {
     head: {
       htmlAttrs: { lang: 'en' },
-      title: 'syentiaCRM',
+      title: 'Syentia CRM',
+      link: [
+        { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
+        {
+          rel: 'icon',
+          type: 'image/png',
+          sizes: '32x32',
+          href: '/favicon.png',
+        },
+        { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
+      ],
       meta: [
+        { name: 'theme-color', content: '#262262' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
       ],
     },

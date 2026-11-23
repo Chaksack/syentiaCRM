@@ -5,7 +5,7 @@ import { initials } from '#shared/utils/format'
 import { PERMISSION_LABELS, ROLE_INFO, can as roleCan } from '#shared/utils/permissions'
 
 definePageMeta({ permission: 'admin' })
-useHead({ title: 'Team · syentiaCRM' })
+useHead({ title: 'Team · Syentia CRM' })
 
 const { user } = useAuth()
 const { accounts } = useCurrentAccount()

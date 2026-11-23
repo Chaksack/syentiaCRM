@@ -85,9 +85,8 @@ watch(() => route.fullPath, () => {
 
 <template>
   <aside class="box-border flex max-w-full flex-[1_1_232px] flex-col gap-[22px] border-r border-line bg-surface px-3.5 py-5 lg:sticky lg:top-0 lg:h-screen lg:max-w-[260px]">
-    <NuxtLink to="/" class="flex items-center gap-2 px-2 text-[17px] tracking-[-0.02em] text-ink hover:text-ink">
-      <span class="inline-block size-[18px] rounded bg-ink" />
-      <span>syentia<span class="text-faint">CRM</span></span>
+    <NuxtLink to="/" class="flex items-center px-2" aria-label="Syentia CRM — dashboard">
+      <BrandLogo />
     </NuxtLink>
 
     <div v-if="account" ref="switcher" class="relative">

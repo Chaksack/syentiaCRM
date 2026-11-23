@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Stroke icons drawn for the syentiaCRM design (24×24 grid, 1.6 stroke).
+// Stroke icons drawn for the Syentia CRM design (24×24 grid, 1.6 stroke).
 type IconName = 'dashboard' | 'customers' | 'invoices' | 'accounts' | 'team' | 'plus' | 'search' | 'updown' | 'back' | 'next'
   | 'check' | 'close' | 'more' | 'trash' | 'download' | 'logout'
 
