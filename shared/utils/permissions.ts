@@ -24,7 +24,7 @@ export const PERMISSION_MATRIX: Record<Permission, readonly Role[]> = {
 
 export const PERMISSION_LABELS: { permission: Permission, label: string }[] = [
   { permission: 'view', label: 'View customers & invoices' },
-  { permission: 'customers.write', label: 'Add & edit customers' },
+  { permission: 'customers.write', label: 'Add & edit customers, projects & licences' },
   { permission: 'invoices.write', label: 'Create & edit invoices' },
   { permission: 'invoices.send', label: 'Send invoices & record payments' },
   { permission: 'admin', label: 'Manage accounts, branding & team' },

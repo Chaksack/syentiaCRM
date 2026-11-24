@@ -1,5 +1,5 @@
 import type { DashboardData, FollowUp } from '#shared/types/domain'
-import { addDays, daysBetween, formatDate, formatMoney, monthLabel, monthLong, todayIso } from '#shared/utils/format'
+import { addDays, daysBetween, formatDate, formatMoney, monthLabel, monthLong, RENEWAL_WINDOW_DAYS, todayIso } from '#shared/utils/format'
 
 const WEEKDAYS = [
   'Sun',
@@ -35,7 +35,7 @@ export default defineEventHandler(async (event): Promise<DashboardData> => {
   const since = `${months[0]}-01`
 
   // Independent queries run in parallel — each is a network round trip on a hosted database.
-  const [account, outstanding, overdue, collected, customers, recent, invoiced, paid, late, tasks] = await Promise.all([
+  const [account, outstanding, overdue, collected, customers, recent, invoiced, paid, late, tasks, renewals] = await Promise.all([
     getAccount(db, accountId),
     db.prepare(`SELECT COUNT(*) AS c, COALESCE(SUM(total - amount_paid), 0) AS s FROM invoices WHERE account_id = ? AND status = 'sent'`).get(accountId),
     db.prepare(`SELECT COUNT(*) AS c, COALESCE(SUM(total - amount_paid), 0) AS s FROM invoices WHERE account_id = ? AND status = 'sent' AND due_date < ?`).get(accountId, today),
@@ -62,7 +62,14 @@ export default defineEventHandler(async (event): Promise<DashboardData> => {
       SELECT id, title, due_date FROM tasks WHERE account_id = ? AND done = 0
       ORDER BY due_date IS NULL, due_date, created_at LIMIT 8
     `).all(accountId),
-  ]) as [Awaited<ReturnType<typeof getAccount>>, Row, Row, Row, Row, Row[], Row[], Row[], Row[], Row[]]
+    // Live licences that have lapsed or renew within the window.
+    db.prepare(`
+      SELECT l.id, l.name, l.renewal_date, l.auto_renew, c.name AS customer FROM licenses l
+      LEFT JOIN customers c ON c.id = l.customer_id
+      WHERE l.account_id = ? AND l.cancelled = 0 AND l.renewal_date IS NOT NULL AND l.renewal_date <= ?
+      ORDER BY l.renewal_date LIMIT 5
+    `).all(accountId, addDays(today, RENEWAL_WINDOW_DAYS)),
+  ]) as [Awaited<ReturnType<typeof getAccount>>, Row, Row, Row, Row, Row[], Row[], Row[], Row[], Row[], Row[]]
 
   const plural = (count: number, word: string) => `${count} ${word}${count === 1
     ? ''
@@ -104,12 +111,34 @@ export default defineEventHandler(async (event): Promise<DashboardData> => {
     const days = daysBetween(r.due_date, today)
     return {
       id: `inv-${r.id}`,
-      invoiceId: r.id,
+      href: `/invoices/${r.id}`,
       title: `Chase ${r.customer ?? 'customer'} on ${r.number}`,
       meta: `${plural(days, 'day')} overdue · ${formatMoney(n(r.balance), r.currency)}`,
       tone: 'urgent',
     }
   })
+  for (const l of renewals) {
+    const days = daysBetween(today, l.renewal_date)
+    const when = days < 0
+      ? `Expired ${plural(-days, 'day')} ago`
+      : days === 0
+        ? 'Renews today'
+        : `Renews in ${plural(days, 'day')} · ${formatDate(l.renewal_date, 'day')}`
+    const autoRenew = l.auto_renew === true || Number(l.auto_renew) === 1
+    followUps.push({
+      id: `lic-${l.id}`,
+      href: `/licenses?id=${l.id}`,
+      title: `Renew ${l.name}${l.customer
+        ? ` for ${l.customer}`
+        : ''}`,
+      meta: autoRenew && days >= 0
+        ? `${when} · auto-renews`
+        : when,
+      tone: days <= 7 && !(autoRenew && days >= 0)
+        ? 'urgent'
+        : 'normal',
+    })
+  }
   for (const t of tasks) {
     let meta = 'No due date'
     if (t.due_date) {

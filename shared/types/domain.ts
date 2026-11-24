@@ -39,6 +39,30 @@ export type Currency = typeof CURRENCIES[number]['code']
 
 export const PAYMENT_TERMS = [0, 7, 14, 30, 45, 60] as const
 
+/** How often a licence fee or project cost recurs. */
+export const BILLING_CYCLES = ['monthly', 'quarterly', 'yearly'] as const
+export type BillingCycle = typeof BILLING_CYCLES[number]
+
+/**
+ * Stored licences are either live or cancelled; the rest is derived from the renewal date:
+ * `due_soon` within RENEWAL_WINDOW_DAYS, `expired` once it has passed.
+ */
+export const LICENSE_STATUSES = [
+  'active',
+  'due_soon',
+  'expired',
+  'cancelled',
+] as const
+export type LicenseStatus = typeof LICENSE_STATUSES[number]
+
+export const PROJECT_STATUSES = [
+  'planning',
+  'active',
+  'on_hold',
+  'completed',
+] as const
+export type ProjectStatus = typeof PROJECT_STATUSES[number]
+
 export const PAYMENT_METHODS = [
   'bank_transfer',
   'mobile_money',
@@ -163,9 +187,73 @@ export interface Customer {
 export interface CustomerDetail extends Customer {
   lifetimeBilled: number
   activities: Activity[]
+  projects: Project[]
+  licenses: License[]
 }
 
 export type ActivityType = 'note' | 'call' | 'invoice_created' | 'invoice_sent' | 'payment' | 'customer_created' | 'customer_updated'
+  | 'project_created' | 'project_updated' | 'license_created' | 'license_renewed'
+
+/**
+ * A licence, permit or subscription with a renewal date. With no customer it is one the company
+ * itself holds (a business permit, a software subscription); with one, it is held for or issued
+ * to that customer.
+ */
+export interface License {
+  id: string
+  accountId: string
+  customerId: string | null
+  customerName: string | null
+  name: string
+  /** Who issues it: a vendor, regulator or authority. */
+  issuer: string
+  /** Licence number, key or certificate reference. */
+  reference: string
+  startDate: string | null
+  /** Next renewal / expiry date; null for a licence that doesn't expire. */
+  renewalDate: string | null
+  cycle: BillingCycle
+  /** Fee per cycle, minor units. */
+  cost: number
+  currency: Currency
+  autoRenew: boolean
+  notes: string
+  status: LicenseStatus
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ProjectCost {
+  id?: string
+  label: string
+  /** Per cycle, minor units. */
+  amount: number
+  frequency: BillingCycle
+  /** When this cost next falls due, if tracked. */
+  nextDueDate: string | null
+}
+
+export interface Project {
+  id: string
+  accountId: string
+  customerId: string
+  customerName: string
+  name: string
+  description: string
+  status: ProjectStatus
+  startDate: string | null
+  endDate: string | null
+  ownerId: string | null
+  ownerName: string | null
+  currency: Currency
+  costs: ProjectCost[]
+  /** All recurring costs as a monthly figure, minor units. */
+  monthlyCost: number
+  /** Earliest next-due date across the costs. */
+  nextDueDate: string | null
+  createdAt: string
+  updatedAt: string
+}
 
 export interface Activity {
   id: string
@@ -249,7 +337,8 @@ export interface FollowUp {
   tone: 'urgent' | 'normal' | 'quiet'
   /** Present for manual tasks, which can be ticked off. */
   taskId?: string
-  invoiceId?: string
+  /** Where the title links to, if anywhere. */
+  href?: string
 }
 
 export interface DashboardData {

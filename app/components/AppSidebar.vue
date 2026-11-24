@@ -32,6 +32,18 @@ const nav = computed(() => [
     show: true,
   },
   {
+    to: '/projects',
+    label: 'Projects',
+    icon: 'projects' as const,
+    show: true,
+  },
+  {
+    to: '/licenses',
+    label: 'Licences',
+    icon: 'licenses' as const,
+    show: true,
+  },
+  {
     to: '/accounts',
     label: 'Accounts & branding',
     icon: 'accounts' as const,

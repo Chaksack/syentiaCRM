@@ -1,4 +1,4 @@
-import type { Adjustment, AdjustmentKind, AdjustmentLine, CustomerStage, InvoiceBreakdown, InvoiceItem, InvoiceStatus, InvoiceTemplate, PaymentMethod } from '../types/domain'
+import type { Adjustment, AdjustmentKind, AdjustmentLine, BillingCycle, CustomerStage, InvoiceBreakdown, InvoiceItem, InvoiceStatus, InvoiceTemplate, LicenseStatus, PaymentMethod, ProjectStatus } from '../types/domain'
 
 const MONTHS = [
   'Jan',
@@ -303,6 +303,13 @@ export function addDays(iso: string, days: number): string {
   return toIsoDate(new Date(y, m - 1, d + days))
 }
 
+/** Adds calendar months, clamping to the month's last day (31 Jan + 1 month → 28/29 Feb). */
+export function addMonths(iso: string, months: number): string {
+  const [y, m, d] = iso.split('-').map(Number) as [number, number, number]
+  const lastDay = new Date(y, m - 1 + months + 1, 0).getDate()
+  return toIsoDate(new Date(y, m - 1 + months, Math.min(d, lastDay)))
+}
+
 export function daysBetween(fromIso: string, toIso: string): number {
   const [y1, m1, d1] = fromIso.split('-').map(Number) as [number, number, number]
   const [y2, m2, d2] = toIso.split('-').map(Number) as [number, number, number]
@@ -411,3 +418,77 @@ export const BRAND_COLORS = [
   '#7a3b1c',
   '#5b4a7a',
 ]
+
+// ─── Licences & projects ─────────────────────────────────────────────────────
+
+/** A licence shows as "Renews soon" this many days before its renewal date. */
+export const RENEWAL_WINDOW_DAYS = 30
+
+export const CYCLE_MONTHS: Record<BillingCycle, number> = { monthly: 1, quarterly: 3, yearly: 12 }
+
+export const CYCLE_LABEL: Record<BillingCycle, { name: string, per: string }> = {
+  monthly: { name: 'Monthly', per: '/ month' },
+  quarterly: { name: 'Quarterly', per: '/ quarter' },
+  yearly: { name: 'Yearly', per: '/ year' },
+}
+
+/** A per-cycle amount as a monthly figure, minor units (rounded). */
+export function monthlyEquivalent(amount: number, cycle: BillingCycle): number {
+  return Math.round(amount / CYCLE_MONTHS[cycle])
+}
+
+/** A per-cycle amount as a yearly figure, minor units (exact for every cycle). */
+export function yearlyEquivalent(amount: number, cycle: BillingCycle): number {
+  return amount * (12 / CYCLE_MONTHS[cycle])
+}
+
+export function licenseStatus(renewalDate: string | null, cancelled: boolean, today = todayIso()): LicenseStatus {
+  if (cancelled)
+    return 'cancelled'
+  if (!renewalDate)
+    return 'active'
+  const days = daysBetween(today, renewalDate)
+  return days < 0
+    ? 'expired'
+    : days <= RENEWAL_WINDOW_DAYS
+      ? 'due_soon'
+      : 'active'
+}
+
+/** "in 12 days", "tomorrow", "today", "3 days ago". */
+export function daysFromToday(iso: string | null | undefined, today = todayIso()): string {
+  if (!iso)
+    return ''
+  const days = daysBetween(today, iso)
+  if (days === 0)
+    return 'today'
+  if (days === 1)
+    return 'tomorrow'
+  if (days === -1)
+    return 'yesterday'
+  return days > 0
+    ? `in ${days} days`
+    : `${-days} days ago`
+}
+
+/** Sums minor-unit amounts per currency: "GHS 1,200.00 · USD 300.00" (or "—" when empty). */
+export function formatTotals(totals: Record<string, number>): string {
+  const parts = Object.entries(totals).filter(([, v]) => v > 0).map(([c, v]) => formatMoney(v, c))
+  return parts.length
+    ? parts.join(' · ')
+    : '—'
+}
+
+export const LICENSE_STATUS_STYLE: Record<LicenseStatus, { label: string, bg: string, fg: string }> = {
+  active: { label: 'Active', bg: '#e1e9dc', fg: '#2c5527' },
+  due_soon: { label: 'Renews soon', bg: '#f6ead0', fg: '#6b4a00' },
+  expired: { label: 'Expired', bg: '#fbe1d3', fg: '#9c3600' },
+  cancelled: { label: 'Cancelled', bg: '#f2f2ef', fg: '#5c5b56' },
+}
+
+export const PROJECT_STATUS_STYLE: Record<ProjectStatus, { label: string, bg: string, fg: string }> = {
+  planning: { label: 'Planning', bg: '#e6e5e0', fg: '#26251e' },
+  active: { label: 'Active', bg: '#e1e9dc', fg: '#2c5527' },
+  on_hold: { label: 'On hold', bg: '#f6ead0', fg: '#6b4a00' },
+  completed: { label: 'Completed', bg: '#f2f2ef', fg: '#5c5b56' },
+}

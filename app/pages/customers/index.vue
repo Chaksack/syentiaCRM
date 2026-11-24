@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Customer, CustomerStage } from '#shared/types/domain'
-import { formatDate, formatMoney, initials, relativeTime, termsLabel } from '#shared/utils/format'
+import { daysFromToday, formatDate, formatMoney, initials, relativeTime, termsLabel } from '#shared/utils/format'
 
 useHead({ title: 'Customers · Syentia CRM' })
 
@@ -108,6 +108,16 @@ async function onSaved(customer: Customer) {
   router.replace({
     query: { id: customer.id },
   })
+}
+
+// ── Projects & licences added from the panel (pre-set to this customer) ──
+const projectFormOpen = ref(false)
+const licenseFormOpen = ref(false)
+async function onLinkedSaved() {
+  await Promise.all([
+    refreshDetail(),
+    refresh(),
+  ])
 }
 
 // ── CSV import ──
@@ -287,6 +297,54 @@ async function importFile(event: Event) {
           </template>
         </dl>
 
+        <div class="flex flex-col gap-2">
+          <div class="flex items-baseline justify-between gap-3">
+            <h3 class="m-0 text-[14px] font-medium">
+              Projects
+            </h3>
+            <button v-if="can('customers.write')" type="button" class="cursor-pointer border-0 bg-transparent p-0 text-[13px] text-accent hover:text-accent-strong" @click="projectFormOpen = true">
+              + Add
+            </button>
+          </div>
+          <NuxtLink
+            v-for="p in selected.projects" :key="p.id" :to="`/projects?id=${p.id}`"
+            class="flex items-center justify-between gap-3 rounded bg-paper px-3 py-2.5 text-[13px] text-ink hover:bg-surface-2 hover:text-ink"
+          >
+            <span class="flex min-w-0 flex-col">
+              <span class="truncate">{{ p.name }}</span>
+              <span class="tabular text-xs text-muted">{{ p.monthlyCost ? `${formatMoney(p.monthlyCost, p.currency)} / month` : 'No recurring costs' }}</span>
+            </span>
+            <StatusPill :project="p.status" />
+          </NuxtLink>
+          <p v-if="!selected.projects.length" class="m-0 text-[13px] text-muted">
+            No projects yet.
+          </p>
+        </div>
+
+        <div class="flex flex-col gap-2">
+          <div class="flex items-baseline justify-between gap-3">
+            <h3 class="m-0 text-[14px] font-medium">
+              Licences
+            </h3>
+            <button v-if="can('customers.write')" type="button" class="cursor-pointer border-0 bg-transparent p-0 text-[13px] text-accent hover:text-accent-strong" @click="licenseFormOpen = true">
+              + Add
+            </button>
+          </div>
+          <NuxtLink
+            v-for="l in selected.licenses" :key="l.id" :to="`/licenses?id=${l.id}`"
+            class="flex items-center justify-between gap-3 rounded bg-paper px-3 py-2.5 text-[13px] text-ink hover:bg-surface-2 hover:text-ink"
+          >
+            <span class="flex min-w-0 flex-col">
+              <span class="truncate">{{ l.name }}</span>
+              <span class="text-xs text-muted">{{ l.renewalDate ? `Renews ${formatDate(l.renewalDate)} · ${daysFromToday(l.renewalDate)}` : 'No expiry' }}</span>
+            </span>
+            <StatusPill :license="l.status" />
+          </NuxtLink>
+          <p v-if="!selected.licenses.length" class="m-0 text-[13px] text-muted">
+            No licences yet.
+          </p>
+        </div>
+
         <div class="flex flex-col gap-2.5">
           <h3 class="m-0 text-[14px] font-medium">
             Timeline
@@ -337,6 +395,10 @@ async function importFile(event: Event) {
     </div>
 
     <CustomerFormDialog v-model:open="formOpen" :account-id="accountId" :customer="editing" @saved="onSaved" />
+    <template v-if="selected && can('customers.write')">
+      <ProjectFormDialog v-model:open="projectFormOpen" :account-id="accountId" :currency="account?.currency ?? 'GHS'" :customer-id="selected.id" @saved="onLinkedSaved" />
+      <LicenseFormDialog v-model:open="licenseFormOpen" :account-id="accountId" :currency="account?.currency ?? 'GHS'" :customer-id="selected.id" @saved="onLinkedSaved" />
+    </template>
 
     <AppDialog v-model:open="importOpen" title="Import customers" :description="`Adds customers to ${account?.name} from a CSV file.`">
       <div class="flex flex-col gap-4 text-[13px]">

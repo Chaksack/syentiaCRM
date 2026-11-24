@@ -22,3 +22,13 @@ export async function assertOwner(ownerId: string | null | undefined) {
   if (!row)
     throw createError({ statusCode: 400, statusMessage: 'Unknown owner' })
 }
+
+/** 400s unless `customerId` is a customer of `accountId` (null passes — it means "no customer"). */
+export async function assertCustomerInAccount(customerId: string | null | undefined, accountId: string) {
+  if (!customerId)
+    return
+  const db = await useDb()
+  const row = await db.prepare('SELECT 1 FROM customers WHERE id = ? AND account_id = ?').get(customerId, accountId)
+  if (!row)
+    throw createError({ statusCode: 400, statusMessage: 'That customer isn’t in this account' })
+}

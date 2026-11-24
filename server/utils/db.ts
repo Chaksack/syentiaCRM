@@ -336,6 +336,60 @@ async function migrate(db: Db) {
   await addColumn(db, 'invoices', 'discount', 'BIGINT NOT NULL DEFAULT 0')
   await addColumn(db, 'invoices', 'deductions', 'BIGINT NOT NULL DEFAULT 0')
   await addColumn(db, 'accounts', 'default_adjustments', 'TEXT NOT NULL DEFAULT \'[]\'')
+
+  // Added after first release — licences with renewal dates, and customer projects with recurring costs.
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS licenses (
+      id TEXT PRIMARY KEY,
+      account_id TEXT NOT NULL REFERENCES accounts(id),
+      customer_id TEXT REFERENCES customers(id) ON DELETE SET NULL,
+      name TEXT NOT NULL,
+      issuer TEXT NOT NULL DEFAULT '',
+      reference TEXT NOT NULL DEFAULT '',
+      start_date TEXT,
+      renewal_date TEXT,
+      cycle TEXT NOT NULL DEFAULT 'yearly',
+      cost BIGINT NOT NULL DEFAULT 0,
+      currency TEXT NOT NULL DEFAULT 'GHS',
+      auto_renew INTEGER NOT NULL DEFAULT 0,
+      cancelled INTEGER NOT NULL DEFAULT 0,
+      notes TEXT NOT NULL DEFAULT '',
+      created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS licenses_account_idx ON licenses(account_id, renewal_date);
+    CREATE INDEX IF NOT EXISTS licenses_customer_idx ON licenses(customer_id);
+
+    CREATE TABLE IF NOT EXISTS projects (
+      id TEXT PRIMARY KEY,
+      account_id TEXT NOT NULL REFERENCES accounts(id),
+      customer_id TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'active',
+      start_date TEXT,
+      end_date TEXT,
+      owner_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      currency TEXT NOT NULL DEFAULT 'GHS',
+      created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS projects_account_idx ON projects(account_id);
+    CREATE INDEX IF NOT EXISTS projects_customer_idx ON projects(customer_id);
+
+    CREATE TABLE IF NOT EXISTS project_costs (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      position INTEGER NOT NULL,
+      label TEXT NOT NULL,
+      amount BIGINT NOT NULL DEFAULT 0,
+      frequency TEXT NOT NULL DEFAULT 'monthly',
+      next_due_date TEXT
+    );
+    CREATE INDEX IF NOT EXISTS project_costs_project_idx ON project_costs(project_id);
+  `)
 }
 
 /** ALTER TABLE … ADD COLUMN, skipped if the column is already there (SQLite has no IF NOT EXISTS for this). */

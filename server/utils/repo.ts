@@ -3,6 +3,7 @@ import type {
   AccountSummary,
   ActivityType,
   Adjustment,
+  BillingCycle,
   Currency,
   Customer,
   CustomerStage,
@@ -10,13 +11,17 @@ import type {
   InvoiceListItem,
   InvoiceStatus,
   InvoiceTemplate,
+  License,
   Member,
   MemberStatus,
   PaymentMethod,
+  Project,
+  ProjectCost,
+  ProjectStatus,
   Role,
 } from '#shared/types/domain'
 import type { Db } from './db'
-import { computeInvoice, formatInvoiceNumber, todayIso } from '#shared/utils/format'
+import { computeInvoice, formatInvoiceNumber, licenseStatus, monthlyEquivalent, todayIso } from '#shared/utils/format'
 import { adjustmentSchema } from '#shared/utils/schemas'
 import { placeholders } from './auth'
 import { newId, nowIso } from './db'
@@ -342,4 +347,110 @@ export async function refreshInvoicePayments(db: Db, invoiceId: string) {
       : row.status
   await db.prepare('UPDATE invoices SET amount_paid = ?, status = ?, paid_at = ?, updated_at = ? WHERE id = ?')
     .run(paid, status, fullyPaid ? row.last_paid : null, nowIso(), invoiceId)
+}
+
+// ─── Licences ────────────────────────────────────────────────────────────────
+
+export const LICENSE_SELECT = `
+  SELECT l.*, c.name AS customer_name FROM licenses l
+  LEFT JOIN customers c ON c.id = l.customer_id
+`
+/** Soonest renewal first; licences that never expire last. */
+export const LICENSE_ORDER = 'ORDER BY l.renewal_date IS NULL, l.renewal_date, l.name'
+
+export function mapLicense(r: Row, today = todayIso()): License {
+  const cancelled = bool(r.cancelled)
+  return {
+    id: r.id,
+    accountId: r.account_id,
+    customerId: r.customer_id ?? null,
+    customerName: r.customer_name ?? null,
+    name: r.name,
+    issuer: r.issuer,
+    reference: r.reference,
+    startDate: r.start_date ?? null,
+    renewalDate: r.renewal_date ?? null,
+    cycle: r.cycle as BillingCycle,
+    cost: num(r.cost),
+    currency: r.currency as Currency,
+    autoRenew: bool(r.auto_renew),
+    notes: r.notes,
+    status: licenseStatus(r.renewal_date ?? null, cancelled, today),
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  }
+}
+
+export async function getLicense(db: Db, id: string): Promise<License | null> {
+  const row = await db.prepare(`${LICENSE_SELECT} WHERE l.id = ?`).get(id) as Row | undefined
+  return row
+    ? mapLicense(row)
+    : null
+}
+
+// ─── Projects ────────────────────────────────────────────────────────────────
+
+export const PROJECT_SELECT = `
+  SELECT p.*, c.name AS customer_name, u.name AS owner_name FROM projects p
+  JOIN customers c ON c.id = p.customer_id
+  LEFT JOIN users u ON u.id = p.owner_id
+`
+
+/** Maps project rows and attaches their recurring costs (one query for all of them). */
+export async function hydrateProjects(db: Db, rows: Row[]): Promise<Project[]> {
+  if (!rows.length)
+    return []
+  const ids = rows.map(r => r.id as string)
+  const costRows = await db.prepare(`SELECT * FROM project_costs WHERE project_id IN (${placeholders(ids)}) ORDER BY position`).all(...ids) as Row[]
+  const costsByProject = new Map<string, ProjectCost[]>()
+  for (const c of costRows) {
+    const list = costsByProject.get(c.project_id) ?? []
+    list.push({
+      id: c.id,
+      label: c.label,
+      amount: num(c.amount),
+      frequency: c.frequency as BillingCycle,
+      nextDueDate: c.next_due_date ?? null,
+    })
+    costsByProject.set(c.project_id, list)
+  }
+  return rows.map((r) => {
+    const costs = costsByProject.get(r.id) ?? []
+    const dues = costs.map(c => c.nextDueDate).filter((d): d is string => !!d).sort()
+    return {
+      id: r.id,
+      accountId: r.account_id,
+      customerId: r.customer_id,
+      customerName: r.customer_name,
+      name: r.name,
+      description: r.description,
+      status: r.status as ProjectStatus,
+      startDate: r.start_date ?? null,
+      endDate: r.end_date ?? null,
+      ownerId: r.owner_id ?? null,
+      ownerName: r.owner_name ?? null,
+      currency: r.currency as Currency,
+      costs,
+      monthlyCost: costs.reduce((sum, c) => sum + monthlyEquivalent(c.amount, c.frequency), 0),
+      nextDueDate: dues[0] ?? null,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+    }
+  })
+}
+
+export async function getProject(db: Db, id: string): Promise<Project | null> {
+  const row = await db.prepare(`${PROJECT_SELECT} WHERE p.id = ?`).get(id) as Row | undefined
+  return row
+    ? (await hydrateProjects(db, [row]))[0]!
+    : null
+}
+
+/** Replaces a project's recurring costs with `costs`, in order. */
+export async function saveProjectCosts(db: Db, projectId: string, costs: Omit<ProjectCost, 'id'>[]) {
+  await db.prepare('DELETE FROM project_costs WHERE project_id = ?').run(projectId)
+  for (const [position, c] of costs.entries()) {
+    await db.prepare('INSERT INTO project_costs (id, project_id, position, label, amount, frequency, next_due_date) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .run(newId('pco'), projectId, position, c.label, c.amount, c.frequency, c.nextDueDate)
+  }
 }

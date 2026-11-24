@@ -8,6 +8,13 @@ Each **account** is a separate billing identity with its own logo, brand colour,
 invoice numbering, payment details and default invoice template (Ledger, Bold or Minimal).
 Customers and invoices belong to one account.
 
+**Projects** belong to a customer and carry their recurring costs (monthly, quarterly or yearly,
+with an optional next-due date); the Projects page totals them per month and per year.
+**Licences** track permits, subscriptions and software licences with a renewal date and fee —
+either the company's own or one held for a customer. Status is derived from the renewal date
+(*Renews soon* within 30 days, *Expired* after it), "Mark renewed" moves the date on one cycle,
+and licences coming up for renewal appear in the dashboard's follow-ups.
+
 ## Getting started
 
 ```bash
@@ -37,7 +44,7 @@ no users.
 
 ```
 app/                 Vue app (pages, components, composables, auth middleware)
-server/api/          REST API (auth, accounts, customers, invoices, team, tasks, dashboard)
+server/api/          REST API (auth, accounts, customers, invoices, projects, licenses, team, tasks, dashboard)
 server/utils/        db adapter + migrations, auth/sessions, queries, seed
 shared/              types, zod schemas, permissions and formatting used by both sides
 ```
@@ -54,7 +61,7 @@ shared/              types, zod schemas, permissions and formatting used by both
   | | Admin | Manager | Sales | Finance | Viewer |
   | --- | :-: | :-: | :-: | :-: | :-: |
   | View customers & invoices | ✓ | ✓ | ✓ | ✓ | ✓ |
-  | Add & edit customers | ✓ | ✓ | ✓ | | |
+  | Add & edit customers, projects & licences | ✓ | ✓ | ✓ | | |
   | Create & edit invoices | ✓ | ✓ | ✓ | ✓ | |
   | Send invoices & record payments | ✓ | ✓ | | ✓ | |
   | Manage accounts, branding & team | ✓ | | | | |

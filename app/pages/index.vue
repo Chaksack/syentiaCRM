@@ -220,7 +220,7 @@ async function completeTask(taskId: string) {
             <div v-for="t in data.followUps" :key="t.id" class="flex items-start gap-3 border-b border-line pb-3">
               <span class="mt-2 size-1.5 shrink-0 rounded-full" :style="{ background: toneColour(t.tone) }" />
               <span class="flex flex-1 flex-col gap-0.5">
-                <NuxtLink v-if="t.invoiceId" :to="`/invoices/${t.invoiceId}`" class="text-ink hover:underline">{{ t.title }}</NuxtLink>
+                <NuxtLink v-if="t.href" :to="t.href" class="text-ink hover:underline">{{ t.title }}</NuxtLink>
                 <span v-else>{{ t.title }}</span>
                 <span class="text-xs text-muted">{{ t.meta }}</span>
               </span>

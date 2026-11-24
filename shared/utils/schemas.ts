@@ -1,10 +1,12 @@
 import { z } from 'zod'
 import {
   ADJUSTMENT_KINDS,
+  BILLING_CYCLES,
   CUSTOMER_STAGES,
   INVOICE_TEMPLATES,
   MEMBER_STATUSES,
   PAYMENT_METHODS,
+  PROJECT_STATUSES,
   ROLES,
 } from '../types/domain'
 
@@ -12,6 +14,23 @@ const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use a YYYY-MM-DD date')
 const hexColor = z.string().regex(/^#[0-9a-f]{6}$/i, 'Use a hex colour like #26251e')
 const currency = z.enum(['GHS', 'USD', 'EUR', 'GBP'])
 const trimmed = (max: number) => z.string().trim().max(max)
+
+type WithoutDefaults<T extends z.ZodRawShape> = { [K in keyof T]: T[K] extends z.ZodDefault<infer Inner> ? Inner : T[K] }
+
+/**
+ * `.partial()` for PATCH bodies: every field optional and none defaulted, so a request changes only
+ * the fields it sends. (Plain `.partial()` isn't enough in Zod 4 — it still fills in each field's
+ * default, which would blank whatever the request left out.)
+ */
+function partialUpdate<T extends z.ZodRawShape>(schema: z.ZodObject<T>) {
+  const shape = Object.fromEntries(Object.entries(schema.shape).map(([key, field]) => [
+    key,
+    field instanceof z.ZodDefault
+      ? field.unwrap()
+      : field,
+  ])) as WithoutDefaults<T>
+  return z.object(shape).partial()
+}
 
 export const adjustmentSchema = z.object({
   kind: z.enum(ADJUSTMENT_KINDS),
@@ -78,7 +97,7 @@ export const customerSchema = z.object({
 })
 export type CustomerInput = z.infer<typeof customerSchema>
 
-export const customerUpdateSchema = customerSchema.omit({ accountId: true }).partial()
+export const customerUpdateSchema = partialUpdate(customerSchema.omit({ accountId: true }))
 
 export const noteSchema = z.object({
   type: z.enum(['note', 'call']).default('note'),
@@ -148,3 +167,66 @@ export const taskSchema = z.object({
 export const taskUpdateSchema = z.object({
   done: z.boolean(),
 })
+
+const money = z.coerce.number().int('Enter an amount').min(0, 'Amounts can’t be negative').max(1_000_000_000_00)
+
+const licenseFields = z.object({
+  accountId: z.string().min(1),
+  customerId: z.string().nullable().default(null),
+  name: trimmed(160).min(1, 'Name the licence'),
+  issuer: trimmed(160).default(''),
+  reference: trimmed(160).default(''),
+  startDate: isoDate.nullable().default(null),
+  renewalDate: isoDate.nullable().default(null),
+  cycle: z.enum(BILLING_CYCLES).default('yearly'),
+  cost: money.default(0),
+  currency,
+  autoRenew: z.boolean().default(false),
+  cancelled: z.boolean().default(false),
+  notes: trimmed(2000).default(''),
+})
+const renewalAfterStart = {
+  check: (l: { startDate: string | null, renewalDate: string | null }) => !l.startDate || !l.renewalDate || l.startDate <= l.renewalDate,
+  error: {
+    message: 'The renewal date can’t be before the start date',
+    path: ['renewalDate'],
+  },
+}
+export const licenseSchema = licenseFields.refine(renewalAfterStart.check, renewalAfterStart.error)
+export type LicenseInput = z.infer<typeof licenseSchema>
+
+// Updates take the whole record (not .partial(): in Zod 4 a partial schema still fills in defaults,
+// which would blank any field the request left out).
+export const licenseUpdateSchema = licenseFields.omit({ accountId: true }).refine(renewalAfterStart.check, renewalAfterStart.error)
+
+export const projectCostSchema = z.object({
+  label: trimmed(160).min(1, 'Describe each recurring cost'),
+  amount: money,
+  frequency: z.enum(BILLING_CYCLES),
+  nextDueDate: isoDate.nullable().default(null),
+})
+
+const projectFields = z.object({
+  accountId: z.string().min(1),
+  customerId: z.string().min(1, 'Choose the customer'),
+  name: trimmed(160).min(1, 'Name the project'),
+  description: trimmed(4000).default(''),
+  status: z.enum(PROJECT_STATUSES).default('active'),
+  startDate: isoDate.nullable().default(null),
+  endDate: isoDate.nullable().default(null),
+  ownerId: z.string().nullable().default(null),
+  currency,
+  costs: z.array(projectCostSchema).max(50).default([]),
+})
+const endAfterStart = {
+  check: (p: { startDate: string | null, endDate: string | null }) => !p.startDate || !p.endDate || p.startDate <= p.endDate,
+  error: {
+    message: 'The end date can’t be before the start date',
+    path: ['endDate'],
+  },
+}
+export const projectSchema = projectFields.refine(endAfterStart.check, endAfterStart.error)
+export type ProjectInput = z.infer<typeof projectSchema>
+
+/** Updates take the whole record, like licenseUpdateSchema. */
+export const projectUpdateSchema = projectFields.omit({ accountId: true }).refine(endAfterStart.check, endAfterStart.error)
