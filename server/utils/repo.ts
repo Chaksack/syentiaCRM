@@ -25,6 +25,7 @@ import { computeInvoice, formatInvoiceNumber, licenseStatus, monthlyEquivalent, 
 import { adjustmentSchema } from '#shared/utils/schemas'
 import { placeholders } from './auth'
 import { newId, nowIso } from './db'
+import { uploadUrl } from './uploads'
 
 // PostgreSQL returns BIGINT/COUNT as strings and SQLite returns booleans as 0/1 — every mapper
 // goes through these so the routes see plain numbers and booleans either way.
@@ -53,12 +54,6 @@ export function parseAdjustments(json: unknown): Adjustment[] {
   catch {
     return []
   }
-}
-
-export function uploadUrl(key: string | null | undefined): string | null {
-  return key
-    ? `/uploads/${key}`
-    : null
 }
 
 // ─── Accounts ────────────────────────────────────────────────────────────────

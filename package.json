@@ -19,6 +19,7 @@
     "db:reset": "rm -f .data/syentia.sqlite .data/syentia.sqlite-* && rm -rf .data/uploads"
   },
   "dependencies": {
+    "@vercel/blob": "^2.9.0",
     "nuxt": "^4.6.4",
     "pg": "^8.23.1",
     "vue": "^3.5.46",

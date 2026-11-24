@@ -39,6 +39,7 @@ no users.
 | `NUXT_SEED_ADMIN_EMAIL` / `_NAME` / `_PASSWORD` | First admin (first start only). |
 | `NUXT_SEED_ACCOUNT_NAME` | Name of the first billing account (first start only). |
 | `NUXT_PUBLIC_SITE_URL` | Public URL, used in invite links. |
+| `KOLA_READ_WRITE_TOKEN` | Vercel Blob (private store) token for uploaded logos. Empty → files go to `.data/uploads`. `KOLA_STORE_ID` is kept for reference. |
 
 ## Layout
 
@@ -52,6 +53,10 @@ shared/              types, zod schemas, permissions and formatting used by both
 - **Database**: `server/utils/db.ts` uses a `pg` connection pool when `DATABASE_URL` is set, with
   each transaction on its own pooled connection. Otherwise it falls back to Nitro's db0 with
   `node:sqlite`. Migrations are idempotent `CREATE … IF NOT EXISTS`, run at startup.
+- **Uploads** (`server/utils/uploads.ts`): logos go to a private Vercel Blob store when
+  `KOLA_READ_WRITE_TOKEN` is set, otherwise to `.data/uploads`. Either way the database keeps a key
+  and browsers load `/uploads/<key>`, which streams the file with headers that keep SVGs inert and
+  lets Vercel's CDN cache it.
 - **Money** is stored as integer minor units (pesewas/cents). "Overdue" is derived from sent
   invoices past their due date.
 - **Auth**: email and password (scrypt), encrypted cookie sessions. The user is reloaded from the
@@ -75,9 +80,6 @@ shared/              types, zod schemas, permissions and formatting used by both
   `server/utils/invites.ts` and `server/api/invoices/[id]/send.post.ts`.
 - **PDF.** "Download PDF" opens an A4 print view (`/invoices/:id/print`), which you save as PDF from
   the browser's print dialog.
-- **Logo storage.** Uploaded logos go to Nitro storage on the local filesystem (`.data/uploads`).
-  For serverless hosting (e.g. Vercel), point the `uploads` storage in `nuxt.config.ts` at a
-  blob or S3 driver.
 
 ## Scripts
 

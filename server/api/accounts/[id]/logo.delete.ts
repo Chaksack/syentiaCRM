@@ -8,7 +8,6 @@ export default defineEventHandler(async (event) => {
   const db = await useDb()
   const previous = await db.prepare(`SELECT ${column} AS k FROM accounts WHERE id = ?`).get(id) as { k: string | null }
   await db.prepare(`UPDATE accounts SET ${column} = NULL WHERE id = ?`).run(id)
-  if (previous?.k)
-    await useStorage('uploads').removeItem(previous.k)
+  await deleteUpload(previous?.k)
   return { account: await getAccount(db, id) }
 })

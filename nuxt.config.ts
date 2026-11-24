@@ -65,7 +65,7 @@ export default defineNuxtConfig({
         options: { path: '.data/syentia.sqlite' },
       },
     },
-    // Uploaded account logos.
+    // Uploaded account logos when no Vercel Blob token is set (local development) — see server/utils/uploads.ts.
     storage: {
       uploads: { driver: 'fs', base: './.data/uploads' },
     },

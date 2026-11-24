@@ -27,10 +27,9 @@ export default defineEventHandler(async (event) => {
   const column = light ? 'logo_light_key' : 'logo_key'
   const previous = await db.prepare(`SELECT ${column} AS k FROM accounts WHERE id = ?`).get(id) as { k: string | null }
   const key = `${newId('logo')}.${ext}`
-  await useStorage('uploads').setItemRaw(key, file.data)
+  await saveUpload(key, file.data, file.type!)
   await db.prepare(`UPDATE accounts SET ${column} = ? WHERE id = ?`).run(key, id)
-  if (previous?.k)
-    await useStorage('uploads').removeItem(previous.k)
+  await deleteUpload(previous?.k)
 
   return { account: await getAccount(db, id) }
 })
